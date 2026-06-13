@@ -35,10 +35,22 @@ agreed **before** writing UI code — this is the cheapest possible integration 
 ### 1.1 REST endpoints (owned by Member 1 — task 6.1)
 | Method | Path | Request | Response |
 |--------|------|---------|----------|
+| `POST` | `/api/chat` | `ChatRequest` | `AgentResponse` |
 | `POST` | `/api/profile` | `FarmerCreate` | `FarmerResponse` (incl. `farmer_id`) |
 | `GET`  | `/api/profile/{farmer_id}` | — | `FarmerResponse` |
 | `GET`  | `/api/forecast/{district}` | — | latest advisory |
 | `GET`  | `/api/districts` *(request this be added)* | — | master district list for onboarding dropdowns |
+
+### 1.1a `ChatRequest` schema (owned by Member 1 — task 6.1)
+```jsonc
+{
+  "farmer_id":  "<uuid>",
+  "message":    "क्या मुझे अभी बुवाई करनी चाहिए?",  // max 500 chars
+  "session_id": "<sid>"                               // optional; server assigns if omitted
+}
+```
+Response is `AgentResponse` (see §1.4). This is the **HTTP fallback path** — the primary
+real-time path is Socket.IO (§1.3). The mock backend must honour both.
 
 ### 1.2 `FarmerCreate` schema (owned by Member 1 — task 1.3)
 ```jsonc
