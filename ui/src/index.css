@@ -1,111 +1,265 @@
+/* Fonts — loaded from Google Fonts for dev; switch @font-face to public/fonts/*.woff2 for demo (step 2.4) */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;1,9..40,400&family=Noto+Sans+Devanagari:wght@400;500&family=Noto+Sans+Tamil:wght@400;500&family=Noto+Sans+Telugu:wght@400;500&family=Noto+Sans+Gurmukhi:wght@400;500&display=swap');
+
+/* ── Design tokens ─────────────────────────────────────────────────────── */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --color-bg:          #F7F3EE;
+  --color-bg-dark:     #1C1410;
+  --color-surface:     #FFFFFF;
+  --color-border:      #E0D5C8;
+  --color-green:       #3A7D44;
+  --color-amber:       #C8871A;
+  --color-terracotta:  #B85C38;
+  --color-brown:       #6B5B4E;
+  --color-brown-light: #9B8B7E;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+  --font-deva:    'Noto Sans Devanagari', 'DM Sans', sans-serif;
+  --font-taml:    'Noto Sans Tamil',      'DM Sans', sans-serif;
+  --font-telu:    'Noto Sans Telugu',     'DM Sans', sans-serif;
+  --font-guru:    'Noto Sans Gurmukhi',   'DM Sans', sans-serif;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--color-brown);
+  background: var(--color-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  text-rendering: optimizeLegibility;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+/* ── Reset ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--color-bg); }
+#root { min-height: 100svh; display: flex; flex-direction: column; }
+h1, h2, h3 { font-family: var(--font-display); color: var(--color-bg-dark); margin: 0; }
+p { margin: 0; }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+/* Screen-reader only utility */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
-body {
-  margin: 0;
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
+/* ── Chat layout ───────────────────────────────────────────────────────── */
+.chat-layout {
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
+  height: 100svh;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+.chat-header {
+  padding: 14px 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+.chat-header h1 {
+  font-size: 20px;
+  color: var(--color-green);
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+.chat-window {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-code {
+/* ── Message bubbles ───────────────────────────────────────────────────── */
+.message-row            { display: flex; }
+.message-row--user      { justify-content: flex-end; }
+.message-row--assistant { justify-content: flex-start; }
+
+.message-bubble {
+  max-width: 80%;
+  border-radius: 16px;
   font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  line-height: 1.7;
+}
+
+.message-bubble--user {
+  padding: 12px 16px;
+  background: var(--color-amber);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.message-bubble--assistant {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-green);
+  border-bottom-left-radius: 4px;
+  overflow: hidden;
+}
+
+/* ── Typing indicator ──────────────────────────────────────────────────── */
+.typing-indicator {
+  display: flex;
+  gap: 5px;
+  padding: 14px 16px;
+  align-items: center;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  background: var(--color-brown-light);
+  border-radius: 50%;
+  animation: ti-bounce 1.2s ease-in-out infinite;
+}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes ti-bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30%           { transform: translateY(-6px); }
+}
+
+/* ── InputBar ──────────────────────────────────────────────────────────── */
+.input-bar {
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.input-bar textarea {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--color-bg-dark);
+  background: var(--color-bg);
+  outline: none;
+  min-height: 44px;
+  max-height: 140px;
+  line-height: 1.5;
+}
+
+.input-bar textarea:focus {
+  border-color: var(--color-green);
+  box-shadow: 0 0 0 2px rgba(58, 125, 68, 0.15);
+}
+
+.input-bar textarea::placeholder { color: var(--color-brown-light); }
+
+.send-btn {
+  min-width: 48px;
+  min-height: 48px;
+  background: var(--color-green);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.send-btn:hover:not(:disabled) { background: #2d6235; }
+.send-btn:disabled { background: var(--color-brown-light); cursor: not-allowed; }
+
+/* ── RecommendationCard ────────────────────────────────────────────────── */
+.rec-card { padding: 14px 16px; }
+
+.rec-card__text {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--color-bg-dark);
+  white-space: pre-wrap;
+  margin: 0 0 10px;
+}
+
+.rec-card__text--deva { font-family: var(--font-deva); }
+.rec-card__text--taml { font-family: var(--font-taml); }
+.rec-card__text--telu { font-family: var(--font-telu); }
+.rec-card__text--guru { font-family: var(--font-guru); }
+
+.rec-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.safe-fallback {
+  font-size: 14px;
+  color: var(--color-terracotta);
+  line-height: 1.6;
+  font-style: italic;
+  margin: 0 0 10px;
+}
+
+/* ── Verdict badge ─────────────────────────────────────────────────────── */
+.verdict-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.verdict-badge--pass    { background: rgba(58, 125, 68, 0.12); color: var(--color-green); }
+.verdict-badge--partial { background: rgba(200, 135, 26, 0.12); color: var(--color-amber); }
+.verdict-badge--reject  { background: rgba(184, 92, 56, 0.12);  color: var(--color-terracotta); }
+
+/* ── Citations ─────────────────────────────────────────────────────────── */
+.citations-toggle {
+  background: none;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-brown-light);
+  cursor: pointer;
+  padding: 3px 0;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.citations-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.citations-list li {
+  font-size: 11px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  color: var(--color-brown);
+  font-family: ui-monospace, monospace;
+}
+
+/* ── LanguageTag ───────────────────────────────────────────────────────── */
+.language-tag {
+  font-size: 11px;
+  color: var(--color-brown-light);
 }
