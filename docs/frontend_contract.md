@@ -84,7 +84,7 @@ Returned on both `POST /api/profile` and `GET /api/profile/{farmer_id}`.
 
 **Server URL:** same as `VITE_API_URL`  
 **Transport:** Socket.IO (not raw WebSocket)  
-**Pinned versions:** `socket.io-client@4.x` (frontend) ↔ `python-socketio@5.x` (backend)  
+**Pinned versions:** `socket.io-client@4.8.3` (frontend) ↔ `python-socketio@5.x` (backend)  
 — version mismatch is a known integration risk; pin both sides explicitly.
 
 ### Client → Server
