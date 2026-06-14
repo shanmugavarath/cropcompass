@@ -39,7 +39,7 @@ function OnboardingPlaceholder() {
 
 export default function App() {
   const farmerId = localStorage.getItem('farmer_id')
-
+  console.log('farmerId is: '+farmerId)
   return (
     <BrowserRouter>
       <Routes>
