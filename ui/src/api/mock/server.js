@@ -1,6 +1,8 @@
 import { http, HttpResponse } from 'msw'
 import { setupWorker } from 'msw/browser'
 
+const BASE = import.meta.env.VITE_API_URL
+
 // Canned responses cycling through all three verdict paths (PASS → PARTIAL → REJECT)
 const MOCK_RESPONSES = [
   {
@@ -33,7 +35,7 @@ const MOCK_RESPONSES = [
 let mockCallCount = 0
 
 export const handlers = [
-  http.get('/api/districts', () =>
+  http.get(`${BASE}/api/districts`, () =>
     HttpResponse.json({
       districts: [
         'Ahmedabad', 'Amravati', 'Aurangabad', 'Bangalore', 'Bhopal',
@@ -45,7 +47,7 @@ export const handlers = [
     })
   ),
 
-  http.post('/api/profile', async ({ request }) => {
+  http.post(`${BASE}/api/profile`, async ({ request }) => {
     const body = await request.json()
     return HttpResponse.json({
       ...body,
@@ -53,7 +55,7 @@ export const handlers = [
     })
   }),
 
-  http.get('/api/profile/:farmerId', ({ params }) =>
+  http.get(`${BASE}/api/profile/:farmerId`, ({ params }) =>
     HttpResponse.json({
       farmer_id: params.farmerId,
       district: 'Pune',
@@ -64,7 +66,7 @@ export const handlers = [
     })
   ),
 
-  http.get('/api/forecast/:district', ({ params }) =>
+  http.get(`${BASE}/api/forecast/:district`, ({ params }) =>
     HttpResponse.json({
       district: params.district,
       bulletin: 'मध्यम वर्षा की संभावना। तापमान 28–34°C।',
@@ -72,7 +74,7 @@ export const handlers = [
     })
   ),
 
-  http.post('/api/chat', async () => {
+  http.post(`${BASE}/api/chat`, async () => {
     const response = MOCK_RESPONSES[mockCallCount % MOCK_RESPONSES.length]
     mockCallCount++
     return HttpResponse.json(response)
