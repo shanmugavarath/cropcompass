@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import LanguageTag from './LanguageTag'
 
 const SAFE_FALLBACK =
@@ -6,9 +6,9 @@ const SAFE_FALLBACK =
 
 const FLORES_TO_BCP47 = {
   hin_Deva: 'hi',
+  mar_Deva: 'mr',
   tam_Taml: 'ta',
   tel_Telu: 'te',
-  mar_Deva: 'mr',
   pan_Guru: 'pa',
   eng_Latn: 'en',
 }
@@ -40,14 +40,20 @@ function VerdictBadge({ verdict }) {
 
 export default function RecommendationCard({ response }) {
   const [showCitations, setShowCitations] = useState(false)
-  const { text, lang, verdict, citations } = response
+  // useId gives a unique ID per card instance — safe for aria-controls when
+  // multiple RecommendationCards appear in the same message list
+  const citationsId = useId()
 
-  const bcp47 = FLORES_TO_BCP47[lang] ?? 'en'
-  const fontClass = FLORES_TO_FONT_CLASS[lang] ?? ''
-  const hasCitations = citations && Object.keys(citations).length > 0
+  const { text, lang, verdict, citations } = response
+  const bcp47      = FLORES_TO_BCP47[lang]     ?? 'en'
+  const fontClass  = FLORES_TO_FONT_CLASS[lang] ?? ''
+  const citationEntries = citations ? Object.entries(citations) : []
+  const hasCitations    = citationEntries.length > 0
+
+  const cardClass = verdict === 'PARTIAL' ? 'rec-card rec-card--partial' : 'rec-card'
 
   return (
-    <div className="rec-card">
+    <div className={cardClass}>
       {verdict === 'REJECT' ? (
         <p className="safe-fallback" role="alert">
           {SAFE_FALLBACK}
@@ -61,22 +67,27 @@ export default function RecommendationCard({ response }) {
       <div className="rec-card__footer">
         <VerdictBadge verdict={verdict} />
         <LanguageTag lang={lang} />
+
         {verdict !== 'REJECT' && hasCitations && (
           <button
             className="citations-toggle"
             onClick={() => setShowCitations(s => !s)}
             aria-expanded={showCitations}
-            aria-controls="citations-list"
+            aria-controls={citationsId}
           >
-            {showCitations ? 'Hide sources' : 'Sources'}
+            {showCitations ? 'Hide sources' : `Sources (${citationEntries.length})`}
           </button>
         )}
       </div>
 
+      {/* Citations: claim text as readable label, chunk_id as monospace reference */}
       {showCitations && hasCitations && (
-        <ul className="citations-list" id="citations-list">
-          {Object.values(citations).map(chunkId => (
-            <li key={chunkId}>{chunkId}</li>
+        <ul className="citations-list" id={citationsId} aria-label="Sources">
+          {citationEntries.map(([claim, chunkId]) => (
+            <li key={chunkId} className="citation-item">
+              <span className="citation-item__claim">{claim}</span>
+              <span className="citation-item__chunk">{chunkId}</span>
+            </li>
           ))}
         </ul>
       )}
