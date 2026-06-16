@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useChat } from '../hooks/useChat'
 import MessageBubble from './MessageBubble'
 import InputBar from './InputBar'
@@ -6,15 +7,28 @@ import InputBar from './InputBar'
 export default function ChatWindow({ farmerId }) {
   const { messages, sendMessage, pending } = useChat(farmerId)
   const bottomRef = useRef(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, pending])
 
+  function handleNewChat() {
+    localStorage.removeItem('farmer_id')
+    navigate('/onboarding')
+  }
+
   return (
     <div className="chat-layout">
       <header className="chat-header">
         <h1>CropCompass</h1>
+        <button
+          className="btn-new-chat"
+          onClick={handleNewChat}
+          aria-label="Start a new chat and return to onboarding"
+        >
+          + New Chat
+        </button>
       </header>
 
       <main

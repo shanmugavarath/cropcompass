@@ -138,7 +138,11 @@ ui/
 - a **verdict badge** — `PASS` ✓ (green) / `PARTIAL` ⚠ (amber, "some advice unverified") / `REJECT` (the safe-fallback message; never show raw rejected advice),
 - **citations** as a collapsible "Sources" list from `citations` values (chunk_ids / source files).
 
-### 2.6 Acceptance criteria
+### 2.6 New Chat button
+- There should be a `New Chat` button on the top right corner in the same pane as CropCompass header.
+- Upon clicking this button, the farmer_id should be removed from the local storage and then the app should navigate back to /onboarding page.
+
+### 2.7 Acceptance criteria
 - Sends a query and renders the assistant response with correct Indic glyphs.
 - Verdict + citations visible. `REJECT` shows only the safe fallback.
 - Works fully against the **mock backend** with no real services running.
