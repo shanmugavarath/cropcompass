@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(pip install *)",
+      "Bash(mkdir -p /mnt/c/ManikandaSakthiS/MTech/DeepLearning/Project/CropCompass_Git/cropcompass/db)",
+      "Bash(mkdir -p /mnt/c/ManikandaSakthiS/MTech/DeepLearning/Project/CropCompass_Git/cropcompass/infra)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker-compose --version)",
+      "Read(//usr/local/bin/**)",
+      "Read(//usr/bin/**)",
+      "Bash(chmod +x /mnt/c/ManikandaSakthiS/MTech/DeepLearning/Project/CropCompass_Git/cropcompass/infra/install_docker.sh)",
+      "Bash(bash /mnt/c/ManikandaSakthiS/MTech/DeepLearning/Project/CropCompass_Git/cropcompass/infra/install_docker.sh)",
+      "Bash(sudo -n docker --version)",
+      "Bash(sudo -n apt-get --version)",
+      "Bash(apt-cache policy *)",
+      "Bash(dpkg -l)",
+      "Bash(curl -fsSL https://get.docker.com -o /tmp/get-docker.sh)",
+      "Read(//tmp/**)",
+      "Bash(sudo -n which docker)",
+      "Bash(snap version *)",
+      "Bash(sudo -n snap install docker)",
+      "Bash(sudo -n docker compose up -d db vectordb)",
+      "Bash(sg docker *)",
+      "Bash(psql *)",
+      "Bash(python3 *)",
+      "Bash(curl -s http://localhost:8001/api/v1/heartbeat)",
+      "Bash(curl *)",
+      "WebFetch(domain:mausam.imd.gov.in)",
+      "WebFetch(domain:www.imdagrimet.gov.in)",
+      "WebFetch(domain:data.imd.gov.in)",
+      "Bash(kill %1)"
+    ]
+  }
+}

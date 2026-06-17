@@ -1,0 +1,69 @@
+services:
+
+  # ── PostgreSQL 15 + pgvector ─────────────────────────────────
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: cropcompass-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-cropcompass}
+      POSTGRES_USER:     ${POSTGRES_USER:-cropcompass}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cropcompass_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cropcompass} -d ${POSTGRES_DB:-cropcompass}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── ChromaDB vector store ─────────────────────────────────────
+  vectordb:
+    image: chromadb/chroma:latest
+    container_name: cropcompass-vectordb
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      CHROMA_SERVER_AUTHN_CREDENTIALS: ${CHROMA_TOKEN:-}
+      CHROMA_SERVER_AUTHN_PROVIDER:    ${CHROMA_AUTH_PROVIDER:-}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/heartbeat || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI application ───────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cropcompass-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL:       postgresql+asyncpg://${POSTGRES_USER:-cropcompass}:${POSTGRES_PASSWORD:-cropcompass_secret}@db:5432/${POSTGRES_DB:-cropcompass}
+      CHROMA_HOST:        vectordb
+      CHROMA_PORT:        8000
+      ANTHROPIC_API_KEY:  ${ANTHROPIC_API_KEY}
+      HF_API_KEY:         ${HF_API_KEY:-}
+      LOG_LEVEL:          ${LOG_LEVEL:-INFO}
+    depends_on:
+      db:
+        condition: service_healthy
+      vectordb:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pg_data:
+  chroma_data:
