@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import client from '../api/client'
+import STRINGS from '../localization/index'
+
+// ── Static data ───────────────────────────────────────────────────────────────
 
 const STATE_DISTRICTS = {
   'Andhra Pradesh':  ['Vijayawada', 'Visakhapatnam'],
@@ -18,20 +21,18 @@ const STATE_DISTRICTS = {
   'West Bengal':     ['Kolkata'],
 }
 
-const SOIL_OPTIONS = [
-  { value: 'clay',      icon: '🟫', label: 'Clay',      desc: 'Heavy, water-retaining' },
-  { value: 'loam',      icon: '🌱', label: 'Loam',      desc: 'Balanced, fertile' },
-  { value: 'sandy',     icon: '🏜️', label: 'Sandy',     desc: 'Light, fast-draining' },
-  { value: 'clay_loam', icon: '🪨', label: 'Clay Loam', desc: 'Moderately heavy' },
-  { value: 'silt_loam', icon: '💧', label: 'Silt Loam', desc: 'Moisture-retaining' },
+// value + icon only — labels come from the localization strings
+const SOIL_VALUES = [
+  { value: 'clay',      icon: '🟫' },
+  { value: 'loam',      icon: '🌱' },
+  { value: 'sandy',     icon: '🏜️'  },
+  { value: 'clay_loam', icon: '🪨' },
+  { value: 'silt_loam', icon: '💧' },
 ]
+const SOIL_KEYS = ['soilClay', 'soilLoam', 'soilSandy', 'soilClayLoam', 'soilSiltLoam']
 
-const STAGE_OPTIONS = [
-  { value: 'sowing',     label: 'Sowing',     desc: 'Seed planting' },
-  { value: 'vegetative', label: 'Vegetative', desc: 'Leaf & stem growth' },
-  { value: 'flowering',  label: 'Flowering',  desc: 'Bloom & pollination' },
-  { value: 'maturity',   label: 'Maturity',   desc: 'Harvest ready' },
-]
+const STAGE_VALUES = ['sowing', 'vegetative', 'flowering', 'maturity']
+const STAGE_KEYS   = ['stageSowing', 'stageVegetative', 'stageFlowering', 'stageMaturity']
 
 const COMMON_CROPS = [
   'Rice (Basmati)', 'Rice (IR-36)', 'Wheat (HD-2967)', 'Wheat (GW-322)',
@@ -74,15 +75,15 @@ const LANG_OPTIONS = [
   },
 ]
 
-const STEP_LABELS = ['Location', 'Farm Details', 'Language']
+// ── Wizard ────────────────────────────────────────────────────────────────────
 
 export default function OnboardingWizard() {
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [apiDistricts, setApiDistricts] = useState([])
   const [formData, setFormData] = useState({
-    state: '', district: '', soil_type: '',
-    crop_variety: '', growth_stage: '', lang_pref: '',
+    lang_pref: '', state: '', district: '',
+    soil_type: '', crop_variety: '', growth_stage: '',
   })
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
@@ -94,7 +95,12 @@ export default function OnboardingWizard() {
       .catch(() => {})
   }, [])
 
+  // Derive localized strings and selected language metadata
+  const t = STRINGS[formData.lang_pref] ?? STRINGS['eng_Latn']
+  const selectedLang = LANG_OPTIONS.find(l => l.value === formData.lang_pref)
   const stateDistricts = formData.state ? (STATE_DISTRICTS[formData.state] ?? []) : []
+  const stepLabels = [t.stepLang, t.stepLocation, t.stepFarm]
+  const progressPct = ((step - 1) / stepLabels.length) * 100
 
   function setField(field, value) {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -102,22 +108,25 @@ export default function OnboardingWizard() {
   }
 
   function validateStep1() {
-    const errs = {}
-    if (!formData.state) errs.state = 'Please select your state.'
-    if (!formData.district) errs.district = 'Please select your district.'
-    else if (apiDistricts.length > 0 && !apiDistricts.includes(formData.district)) {
-      errs.district = 'District not in advisory network. Please select another.'
-    }
-    return errs
+    if (!formData.lang_pref) return { lang_pref: 'Please select your preferred language.' }
+    return {}
   }
 
   function validateStep2() {
     const errs = {}
-    if (!formData.soil_type) errs.soil_type = 'Please select your soil type.'
-    if (!formData.crop_variety || formData.crop_variety.trim().length < 2) {
-      errs.crop_variety = 'Please enter a crop variety (minimum 2 characters).'
+    if (!formData.state) errs.state = t.errorState
+    if (!formData.district) errs.district = t.errorDistrict
+    else if (apiDistricts.length > 0 && !apiDistricts.includes(formData.district)) {
+      errs.district = t.errorDistrictNetwork
     }
-    if (!formData.growth_stage) errs.growth_stage = 'Please select the growth stage.'
+    return errs
+  }
+
+  function validateStep3() {
+    const errs = {}
+    if (!formData.soil_type) errs.soil_type = t.errorSoil
+    if (!formData.crop_variety || formData.crop_variety.trim().length < 2) errs.crop_variety = t.errorCrop
+    if (!formData.growth_stage) errs.growth_stage = t.errorStage
     return errs
   }
 
@@ -129,10 +138,8 @@ export default function OnboardingWizard() {
   }
 
   async function handleSubmit() {
-    if (!formData.lang_pref) {
-      setErrors({ lang_pref: 'Please select your preferred language.' })
-      return
-    }
+    const errs = validateStep3()
+    if (Object.keys(errs).length) { setErrors(errs); return }
     setSubmitting(true)
     setServerError('')
     try {
@@ -144,7 +151,6 @@ export default function OnboardingWizard() {
         lang_pref:    formData.lang_pref,
       })
       localStorage.setItem('farmer_id', data.farmer_id)
-      console.log('navigating to chat...')
       navigate('/chat')
     } catch (err) {
       const msg = err.response?.data?.detail ?? 'Something went wrong. Please try again.'
@@ -154,14 +160,13 @@ export default function OnboardingWizard() {
     }
   }
 
-  const selectedLang = LANG_OPTIONS.find(l => l.value === formData.lang_pref)
-  const progressPct  = ((step - 1) / STEP_LABELS.length) * 100
-
   return (
     <div className="wizard-layout">
       <div className="wizard-header">
         <h1>CropCompass</h1>
-        <p>Set up your profile to get personalised crop advice</p>
+        <p lang={selectedLang?.bcp47} style={{ fontFamily: selectedLang?.font }}>
+          {t.wizardSubtitle}
+        </p>
       </div>
 
       <div className="wizard-progress">
@@ -169,10 +174,15 @@ export default function OnboardingWizard() {
           <div className="wizard-progress__fill" style={{ width: `${progressPct}%` }} />
         </div>
         <div className="wizard-progress__labels">
-          {STEP_LABELS.map((label, i) => (
+          {stepLabels.map((label, i) => (
             <span
-              key={label}
-              style={{ color: i + 1 <= step ? 'var(--color-green)' : undefined, fontWeight: i + 1 === step ? 500 : undefined }}
+              key={i}
+              lang={selectedLang?.bcp47}
+              style={{
+                color:      i + 1 <= step ? 'var(--color-green)' : undefined,
+                fontWeight: i + 1 === step ? 500 : undefined,
+                fontFamily: selectedLang?.font,
+              }}
             >
               {label}
             </span>
@@ -182,29 +192,33 @@ export default function OnboardingWizard() {
 
       <div className="wizard-card">
         {step === 1 && (
-          <Step1
+          <StepLang
             formData={formData}
             errors={errors}
             setField={setField}
-            stateDistricts={stateDistricts}
+            selectedLang={selectedLang}
             onNext={nextStep}
           />
         )}
         {step === 2 && (
-          <Step2
+          <StepLocation
             formData={formData}
             errors={errors}
             setField={setField}
+            stateDistricts={stateDistricts}
+            selectedLang={selectedLang}
+            t={t}
             onBack={() => setStep(1)}
             onNext={nextStep}
           />
         )}
         {step === 3 && (
-          <Step3
+          <StepFarm
             formData={formData}
             errors={errors}
             setField={setField}
             selectedLang={selectedLang}
+            t={t}
             serverError={serverError}
             submitting={submitting}
             onBack={() => setStep(2)}
@@ -216,140 +230,9 @@ export default function OnboardingWizard() {
   )
 }
 
-function Step1({ formData, errors, setField, stateDistricts, onNext }) {
-  return (
-    <>
-      <h2>Your Location</h2>
-      <p className="wizard-card__subtitle">
-        We use your district to fetch local weather and soil data.
-      </p>
+// ── Step 1: Language selection (always in English — user hasn't chosen yet) ───
 
-      <div className="field-group">
-        <div className="field">
-          <label htmlFor="state-select">State</label>
-          <select
-            id="state-select"
-            value={formData.state}
-            onChange={e => { setField('state', e.target.value); setField('district', '') }}
-            aria-invalid={!!errors.state}
-          >
-            <option value="">— Select state —</option>
-            {Object.keys(STATE_DISTRICTS).sort().map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          {errors.state && <span className="field-error" role="alert">{errors.state}</span>}
-        </div>
-
-        <div className="field">
-          <label htmlFor="district-select">District</label>
-          <select
-            id="district-select"
-            value={formData.district}
-            onChange={e => setField('district', e.target.value)}
-            disabled={!formData.state}
-            aria-invalid={!!errors.district}
-          >
-            <option value="">— Select district —</option>
-            {stateDistricts.map(d => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-          {errors.district && <span className="field-error" role="alert">{errors.district}</span>}
-        </div>
-      </div>
-
-      <div className="wizard-nav">
-        <button className="btn-next" onClick={onNext}>Next: Farm Details →</button>
-      </div>
-    </>
-  )
-}
-
-function Step2({ formData, errors, setField, onBack, onNext }) {
-  return (
-    <>
-      <h2>Your Farm</h2>
-      <p className="wizard-card__subtitle">
-        This helps us tailor soil and fertiliser advice.
-      </p>
-
-      <div className="field-group">
-        <div className="field">
-          <label>Soil Type</label>
-          <div className="soil-grid" role="radiogroup" aria-label="Soil type">
-            {SOIL_OPTIONS.map(opt => (
-              <div key={opt.value} className="soil-radio">
-                <input
-                  type="radio"
-                  id={`soil-${opt.value}`}
-                  name="soil_type"
-                  value={opt.value}
-                  checked={formData.soil_type === opt.value}
-                  onChange={() => setField('soil_type', opt.value)}
-                />
-                <label htmlFor={`soil-${opt.value}`}>
-                  <span className="soil-icon" aria-hidden="true">{opt.icon}</span>
-                  <span>{opt.label}</span>
-                  <span className="soil-desc">{opt.desc}</span>
-                </label>
-              </div>
-            ))}
-          </div>
-          {errors.soil_type && <span className="field-error" role="alert">{errors.soil_type}</span>}
-        </div>
-
-        <div className="field">
-          <label htmlFor="crop-input">Crop Variety</label>
-          <input
-            id="crop-input"
-            type="text"
-            list="crop-list"
-            placeholder="e.g. Soybean JS-335"
-            value={formData.crop_variety}
-            onChange={e => setField('crop_variety', e.target.value)}
-            aria-invalid={!!errors.crop_variety}
-            autoComplete="off"
-          />
-          <datalist id="crop-list">
-            {COMMON_CROPS.map(c => <option key={c} value={c} />)}
-          </datalist>
-          {errors.crop_variety && <span className="field-error" role="alert">{errors.crop_variety}</span>}
-        </div>
-
-        <div className="field">
-          <label>Growth Stage</label>
-          <div className="stage-grid" role="radiogroup" aria-label="Growth stage">
-            {STAGE_OPTIONS.map(opt => (
-              <div key={opt.value} className="stage-radio">
-                <input
-                  type="radio"
-                  id={`stage-${opt.value}`}
-                  name="growth_stage"
-                  value={opt.value}
-                  checked={formData.growth_stage === opt.value}
-                  onChange={() => setField('growth_stage', opt.value)}
-                />
-                <label htmlFor={`stage-${opt.value}`}>
-                  <span>{opt.label}</span>
-                  <span className="stage-desc">{opt.desc}</span>
-                </label>
-              </div>
-            ))}
-          </div>
-          {errors.growth_stage && <span className="field-error" role="alert">{errors.growth_stage}</span>}
-        </div>
-      </div>
-
-      <div className="wizard-nav">
-        <button className="btn-back" onClick={onBack}>← Back</button>
-        <button className="btn-next" onClick={onNext}>Next: Language →</button>
-      </div>
-    </>
-  )
-}
-
-function Step3({ formData, errors, setField, selectedLang, serverError, submitting, onBack, onSubmit }) {
+function StepLang({ formData, errors, setField, selectedLang, onNext }) {
   return (
     <>
       <h2>Your Language</h2>
@@ -399,20 +282,162 @@ function Step3({ formData, errors, setField, selectedLang, serverError, submitti
         </div>
       )}
 
+      <div className="wizard-nav">
+        <button className="btn-next" onClick={onNext}>Next: Your Location →</button>
+      </div>
+    </>
+  )
+}
+
+// ── Step 2: Location — rendered in the chosen language ───────────────────────
+
+function StepLocation({ formData, errors, setField, stateDistricts, selectedLang, t, onBack, onNext }) {
+  const langAttr   = selectedLang?.bcp47
+  const fontFamily = selectedLang?.font
+
+  return (
+    <div lang={langAttr} style={{ fontFamily }}>
+      <h2>{t.locationTitle}</h2>
+      <p className="wizard-card__subtitle">{t.locationSubtitle}</p>
+
+      <div className="field-group">
+        <div className="field">
+          <label htmlFor="state-select">{t.stateLabel}</label>
+          <select
+            id="state-select"
+            value={formData.state}
+            onChange={e => { setField('state', e.target.value); setField('district', '') }}
+            aria-invalid={!!errors.state}
+          >
+            <option value="">{t.statePlaceholder}</option>
+            {Object.keys(STATE_DISTRICTS).sort().map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          {errors.state && <span className="field-error" role="alert">{errors.state}</span>}
+        </div>
+
+        <div className="field">
+          <label htmlFor="district-select">{t.districtLabel}</label>
+          <select
+            id="district-select"
+            value={formData.district}
+            onChange={e => setField('district', e.target.value)}
+            disabled={!formData.state}
+            aria-invalid={!!errors.district}
+          >
+            <option value="">{t.districtPlaceholder}</option>
+            {stateDistricts.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+          {errors.district && <span className="field-error" role="alert">{errors.district}</span>}
+        </div>
+      </div>
+
+      <div className="wizard-nav">
+        <button className="btn-back" onClick={onBack}>{t.backBtn}</button>
+        <button className="btn-next" onClick={onNext}>{t.nextLocationBtn}</button>
+      </div>
+    </div>
+  )
+}
+
+// ── Step 3: Farm details — rendered in the chosen language ───────────────────
+
+function StepFarm({ formData, errors, setField, selectedLang, t, serverError, submitting, onBack, onSubmit }) {
+  const langAttr   = selectedLang?.bcp47
+  const fontFamily = selectedLang?.font
+
+  const soilOptions  = SOIL_VALUES.map((s, i) => ({ ...s, ...t[SOIL_KEYS[i]] }))
+  const stageOptions = STAGE_VALUES.map((v, i) => ({ value: v, ...t[STAGE_KEYS[i]] }))
+
+  return (
+    <div lang={langAttr} style={{ fontFamily }}>
+      <h2>{t.farmTitle}</h2>
+      <p className="wizard-card__subtitle">{t.farmSubtitle}</p>
+
+      <div className="field-group">
+        <div className="field">
+          <label>{t.soilLabel}</label>
+          <div className="soil-grid" role="radiogroup" aria-label={t.soilLabel}>
+            {soilOptions.map(opt => (
+              <div key={opt.value} className="soil-radio">
+                <input
+                  type="radio"
+                  id={`soil-${opt.value}`}
+                  name="soil_type"
+                  value={opt.value}
+                  checked={formData.soil_type === opt.value}
+                  onChange={() => setField('soil_type', opt.value)}
+                />
+                <label htmlFor={`soil-${opt.value}`}>
+                  <span className="soil-icon" aria-hidden="true">{opt.icon}</span>
+                  <span>{opt.label}</span>
+                  <span className="soil-desc">{opt.desc}</span>
+                </label>
+              </div>
+            ))}
+          </div>
+          {errors.soil_type && <span className="field-error" role="alert">{errors.soil_type}</span>}
+        </div>
+
+        <div className="field">
+          <label htmlFor="crop-input">{t.cropLabel}</label>
+          <input
+            id="crop-input"
+            type="text"
+            list="crop-list"
+            placeholder={t.cropPlaceholder}
+            value={formData.crop_variety}
+            onChange={e => setField('crop_variety', e.target.value)}
+            aria-invalid={!!errors.crop_variety}
+            autoComplete="off"
+          />
+          <datalist id="crop-list">
+            {COMMON_CROPS.map(c => <option key={c} value={c} />)}
+          </datalist>
+          {errors.crop_variety && <span className="field-error" role="alert">{errors.crop_variety}</span>}
+        </div>
+
+        <div className="field">
+          <label>{t.stageLabel}</label>
+          <div className="stage-grid" role="radiogroup" aria-label={t.stageLabel}>
+            {stageOptions.map(opt => (
+              <div key={opt.value} className="stage-radio">
+                <input
+                  type="radio"
+                  id={`stage-${opt.value}`}
+                  name="growth_stage"
+                  value={opt.value}
+                  checked={formData.growth_stage === opt.value}
+                  onChange={() => setField('growth_stage', opt.value)}
+                />
+                <label htmlFor={`stage-${opt.value}`}>
+                  <span>{opt.label}</span>
+                  <span className="stage-desc">{opt.desc}</span>
+                </label>
+              </div>
+            ))}
+          </div>
+          {errors.growth_stage && <span className="field-error" role="alert">{errors.growth_stage}</span>}
+        </div>
+      </div>
+
       {serverError && (
         <div className="server-error" role="alert">{serverError}</div>
       )}
 
       <div className="wizard-nav">
-        <button className="btn-back" onClick={onBack}>← Back</button>
+        <button className="btn-back" onClick={onBack}>{t.backBtn}</button>
         <button
           className="btn-submit"
           onClick={onSubmit}
           disabled={submitting}
         >
-          {submitting ? 'Setting up…' : 'Start Advising →'}
+          {submitting ? t.submittingBtn : t.submitBtn}
         </button>
       </div>
-    </>
+    </div>
   )
 }

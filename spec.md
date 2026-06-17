@@ -50,7 +50,7 @@ rendering in the chat UI.
 | ID  | Task | Owner |
 |-----|------|-------|
 | 4.1 | Web Chat Interface — React/HTML chat UI with Indic script rendering, structured recommendation display, REST/WebSocket backend integration | Member 5 |
-| 4.3 | Farmer onboarding & profile capture — first-use flow collecting district, soil type, crop, and language preference in under 3 minutes | Member 5 |
+| 4.3 | Farmer onboarding & profile capture — first-use flow collecting language preference, district, and soil type & crop in under 3 minutes | Member 5 |
 
 ### WS5 — Evaluation & Testing (5 tasks)
 

@@ -155,10 +155,10 @@ ui/
 
 ### 3.1 Flow (route `/onboarding`, gated before `/chat`)
 ```
-Step 1 — Location:   State dropdown → District dropdown (filtered; from GET /api/districts)
-Step 2 — Farm:       Soil type (5 radio + icons) · Crop variety (autocomplete) · Growth stage (4 radio)
-Step 3 — Language:   हिंदी | தமிழ் | తెలుగు | मराठी | ਪੰਜਾਬੀ | English
+Step 1 — Language:   हिंदी | தமிழ் | తెలుగు | मराठी | ਪੰਜਾਬੀ | English
                      + live preview "नमस्ते, किसान!" to confirm the font renders
+Step 2 — Location:   State dropdown → District dropdown (filtered; from GET /api/districts)
+Step 3 — Farm:       Soil type (5 radio + icons) · Crop variety (autocomplete) · Growth stage (4 radio)
 ```
 
 ### 3.2 Submit
@@ -176,11 +176,13 @@ navigate('/chat');
   authoritative, but pre-filter client-side from `/api/districts`).
 - On app load, read `farmer_id` from `localStorage`; if present skip onboarding → `/chat`.
 - Surface server 4xx (e.g. unknown district) inline on Step 1.
+- Maintain a `localization` folder that contains the translation strings for all the static text visible during farmer onboarding.
 
 ### 3.4 Acceptance criteria
 - New user completes onboarding → lands in chat with a valid `farmer_id`.
 - Returning user (localStorage set) skips straight to chat.
 - Language preview renders correctly for all 6 options.
+- Once language is set, then the next pages are rendered in the localized language.
 
 ---
 
