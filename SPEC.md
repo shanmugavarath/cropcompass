@@ -806,4 +806,278 @@ cropcompass/
         └── chat.py              ← Member 1 stub, Member 3 implements [DONE stub]
 ```
 
-**Only remaining item:** `openapi.yaml` (generate from running app + redocly lint).
+**Only remaining item (foundation):** `openapi.yaml` (generate from running app + redocly lint).
+
+---
+
+## Task 1.5 — Monsoon Outlook & Historical Rainfall Enhancement (PENDING)
+
+### Motivation
+
+Farmers ask long-horizon planning questions that the daily 5-day IMD advisory (Task 1.1) cannot answer:
+
+> *"Will there be enough rainfall for sugarcane in Chennai over the next year?"*  
+> *"Has turmeric ever succeeded in Madurai given the historical monsoon pattern?"*
+
+Answering these requires three additional data layers:
+
+| Layer | What it provides |
+|-------|-----------------|
+| **Historical rainfall** | 10-year monthly actuals per district |
+| **Seasonal outlook** | IMD Long Range Forecast — category + probabilities for the season |
+| **Crop water requirements** | ICAR min / optimal / max annual rainfall per crop |
+
+### New Database Tables
+
+#### `crop_water_requirements`
+
+Static ICAR reference. Seeded once at schema creation, updated manually when ICAR revises guidelines.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | SERIAL PK | |
+| `crop_name` | VARCHAR(100) UNIQUE | sugarcane / turmeric / rice / wheat / maize / cotton / soybean / pulses |
+| `min_rainfall_mm` | INT NOT NULL | Annual minimum for viable yield |
+| `optimal_rainfall_mm` | INT NOT NULL | Annual optimal for best yield |
+| `max_rainfall_mm` | INT NOT NULL | Above this → waterlogging risk |
+| `growing_duration_days` | INT NOT NULL | Typical crop cycle length |
+| `kharif_suitable` | BOOLEAN | Jun–Oct season |
+| `rabi_suitable` | BOOLEAN | Nov–Mar season |
+| `zaid_suitable` | BOOLEAN | Mar–Jun season |
+| `water_sensitivity` | VARCHAR(10) | high / medium / low |
+| `notes` | TEXT | Irrigation tips, soil preference |
+
+**Seed data:**
+
+| Crop | Min (mm) | Optimal (mm) | Max (mm) | Days | Sensitivity |
+|------|----------|-------------|----------|------|-------------|
+| sugarcane | 1500 | 2000 | 2500 | 365 | high |
+| turmeric | 1500 | 1800 | 2250 | 270 | high |
+| rice | 1200 | 1500 | 2000 | 120 | medium |
+| wheat | 400 | 500 | 600 | 120 | medium |
+| maize | 500 | 750 | 1000 | 100 | medium |
+| cotton | 600 | 900 | 1200 | 180 | low |
+| soybean | 600 | 800 | 1000 | 100 | low |
+| pulses | 300 | 500 | 700 | 90 | low |
+
+#### `imd_historical_rainfall`
+
+Monthly actual rainfall per district. Loaded via the Open-Meteo archive API (free, no API key required).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | SERIAL PK | |
+| `district` | VARCHAR(100) NOT NULL | |
+| `state` | VARCHAR(100) NOT NULL | |
+| `year` | INT NOT NULL | |
+| `month` | INT NOT NULL | 1–12 |
+| `rainfall_mm` | DECIMAL(8,2) | Monthly precipitation total |
+| `normal_rainfall_mm` | DECIMAL(8,2) | 30-yr climatological average (computed from loaded data) |
+| `departure_pct` | DECIMAL(6,2) | `((rainfall_mm - normal_mm) / normal_mm) * 100` |
+| `data_source` | VARCHAR(50) | `open_meteo` / `imd_api` |
+| `fetched_at` | TIMESTAMPTZ NOT NULL DEFAULT NOW() | |
+
+**Unique key:** `(district, year, month)`  
+**API endpoint:** `https://archive-api.open-meteo.com/v1/archive?latitude={lat}&longitude={lon}&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&daily=precipitation_sum&timezone=Asia%2FKolkata`  
+**Aggregation:** Sum daily `precipitation_sum` values into monthly totals in the loader.  
+**Backfill:** Load Jan 2015 → current month on first run. Add each new month on the 1st.  
+**Lat/lon source:** Read from `imd_districts_ref.latitude` / `imd_districts_ref.longitude`.
+
+#### `imd_seasonal_outlook`
+
+IMD Long Range Forecast (LRF) — season-level rainfall category and probability for the current year.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | SERIAL PK | |
+| `district` | VARCHAR(100) NOT NULL | |
+| `state` | VARCHAR(100) NOT NULL | |
+| `forecast_year` | INT NOT NULL | |
+| `season` | VARCHAR(20) NOT NULL | `kharif` / `rabi` / `annual` |
+| `forecast_category` | VARCHAR(20) | `deficient` / `below_normal` / `normal` / `above_normal` / `excess` |
+| `prob_below_normal` | DECIMAL(5,2) | % probability |
+| `prob_normal` | DECIMAL(5,2) | % probability |
+| `prob_above_normal` | DECIMAL(5,2) | % probability |
+| `published_at` | DATE | LRF publication date from IMD |
+| `source_url` | VARCHAR(1000) | |
+| `fetched_at` | TIMESTAMPTZ NOT NULL DEFAULT NOW() | |
+
+**Unique key:** `(district, forecast_year, season)`  
+**Upsert policy:** On conflict → update all probability/category fields, reset `fetched_at`.  
+**IMD LRF source:** `https://mausam.imd.gov.in/responsive/seasonalForecast.php`  
+**Scrape frequency:** Every Monday 07:00 IST (LRF updates weekly during Jun–Sep monsoon season; quarterly otherwise).
+
+### New API Endpoint
+
+#### `GET /api/rainfall/{district}/crop-suitability/{crop}`
+
+**Purpose:** Given a district and a crop, assess whether historical and forecast rainfall is adequate for a full growing cycle.
+
+**Path params:**
+- `district` — case-insensitive, matched against `imd_historical_rainfall.district`
+- `crop` — one of the 8 crops in `crop_water_requirements.crop_name`
+
+**Response schema (`CropSuitabilityResponse`):**
+
+```json
+{
+  "district": "Chennai",
+  "state": "Tamil Nadu",
+  "crop": "sugarcane",
+  "assessment_date": "2026-06-19",
+
+  "historical_rainfall": {
+    "years_analysed": 10,
+    "annual_avg_mm": 1387,
+    "annual_min_mm": 890,
+    "annual_max_mm": 1820,
+    "monsoon_avg_mm": 920,
+    "dry_months": [1, 2, 3],
+    "consistency_score": 0.72
+  },
+
+  "seasonal_outlook": {
+    "season": "kharif",
+    "forecast_year": 2026,
+    "category": "above_normal",
+    "prob_below_normal": 15.0,
+    "prob_normal": 30.0,
+    "prob_above_normal": 55.0,
+    "published_at": "2026-06-01"
+  },
+
+  "crop_requirement": {
+    "min_rainfall_mm": 1500,
+    "optimal_rainfall_mm": 2000,
+    "max_rainfall_mm": 2500,
+    "growing_duration_days": 365,
+    "water_sensitivity": "high"
+  },
+
+  "verdict": "MARGINAL",
+  "surplus_deficit_mm": -113,
+  "confidence": "medium",
+  "recommendation": "Historical annual average (1387mm) is below the minimum requirement (1500mm) for sugarcane. The above-normal outlook for 2026 kharif season may bridge the gap. Plan 2–3 supplemental irrigations during dry months (Jan–Mar)."
+}
+```
+
+**Verdict logic:**
+
+| Condition | Verdict |
+|-----------|---------|
+| `hist_avg >= crop.optimal_mm` | `SUFFICIENT` |
+| `hist_avg >= crop.min_mm` AND outlook `normal` or `above_normal` | `SUFFICIENT` |
+| `hist_avg >= crop.min_mm` AND outlook `below_normal` or `deficient` | `MARGINAL` |
+| `hist_avg < crop.min_mm` AND outlook `above_normal` or `excess` | `MARGINAL` |
+| `hist_avg < crop.min_mm` AND outlook `normal` / `below_normal` / `deficient` | `INSUFFICIENT` |
+| `hist_avg > crop.max_mm` | `EXCESS — DRAINAGE RISK` |
+
+**Confidence level:**
+- `high` — outlook data present AND ≥ 7 years of historical data
+- `medium` — outlook missing OR < 7 years historical
+- `low` — < 3 years historical data
+
+**Dry months:** months where `monthly_avg_mm < 60` — included in recommendation to guide supplemental irrigation advice.
+
+**Consistency score:** `1 - (std_dev / mean)` of annual totals across years (1.0 = perfectly consistent).
+
+### New Pipeline Files
+
+#### `pipeline/historical_rainfall_loader.py`
+
+```
+Flow:
+  1. Read all active districts from imd_districts_ref (lat, lon)
+  2. For each district (semaphore=5 concurrent):
+       → Build Open-Meteo request:
+           start_date = 2015-01-01
+           end_date   = last day of previous month
+           params: latitude, longitude, daily=precipitation_sum, timezone=Asia/Kolkata
+       → Parse JSON response → group daily values by (year, month) → sum
+       → Compute normal_rainfall_mm = average of same month across all years
+       → Compute departure_pct = ((rainfall - normal) / normal) * 100
+       → Upsert into imd_historical_rainfall ON CONFLICT (district, year, month) DO UPDATE
+  3. Update pipeline_runs audit record
+```
+
+**Monthly refresh (1st of month):** Only fetch the previous month's data — no full backfill needed.  
+**Idempotent:** Can be re-run safely — upsert ensures no duplicates.
+
+#### `pipeline/imd_seasonal_scraper.py`
+
+```
+Flow:
+  1. Fetch IMD LRF page: https://mausam.imd.gov.in/responsive/seasonalForecast.php
+  2. Parse: forecast_year, season, district-level category and probabilities
+  3. For each district in imd_districts_ref:
+       → Match scraped subdivision/district to our district name
+       → Upsert into imd_seasonal_outlook ON CONFLICT (district, forecast_year, season) DO UPDATE
+  4. Fallback: if scraping fails, generate outlook from nearest meteorological subdivision
+  5. Update pipeline_runs audit record
+```
+
+**Dev mock mode:** When `IMD_DEV_MOCK=true`, generate plausible seasonal outlook (normally distributed around 33/34/33 probabilities).
+
+### Updated Pipeline Schedule
+
+```
+06:00 IST daily        → imd_scraper                 — GKMS daily district advisories
+06:30 IST daily        → staleness_check              — mark_stale_records()
+07:00 IST every Mon    → imd_seasonal_scraper         — IMD LRF weekly seasonal outlook
+01:00 IST 1st of month → historical_rainfall_loader   — add previous month's data
+On startup (once)      → historical_rainfall_loader   — backfill Jan 2015 → present
+```
+
+### Updated Staleness Thresholds
+
+| Data | Threshold | Managed by |
+|------|-----------|-----------|
+| `imd_advisories` | 48 hours | `mark_stale_records()` |
+| `farmers` | 90 days | `mark_stale_records()` |
+| `imd_historical_rainfall` | 35 days | New: `mark_stale_records()` extension |
+| `imd_seasonal_outlook` | 14 days | New: `mark_stale_records()` extension |
+| `crop_water_requirements` | No expiry (static) | Manual only |
+
+### New Files
+
+| File | Type | Action |
+|------|------|--------|
+| `db/rainfall_schema.sql` | SQL | NEW — 3 tables + seed data for crop water requirements |
+| `app/models/historical_rainfall.py` | ORM | NEW — `IMDHistoricalRainfall` |
+| `app/models/seasonal_outlook.py` | ORM | NEW — `IMDSeasonalOutlook` |
+| `app/models/crop_water_req.py` | ORM | NEW — `CropWaterRequirement` |
+| `app/schemas/rainfall.py` | Pydantic | NEW — `CropSuitabilityResponse`, `HistoricalRainfallStats`, `SeasonalOutlookInfo` |
+| `app/routes/rainfall.py` | FastAPI | NEW — `GET /api/rainfall/{district}/crop-suitability/{crop}` |
+| `pipeline/historical_rainfall_loader.py` | Pipeline | NEW — Open-Meteo backfill + monthly refresh |
+| `pipeline/imd_seasonal_scraper.py` | Pipeline | NEW — IMD LRF weekly scrape |
+| `pipeline/scheduler.py` | Pipeline | MODIFY — add 2 new cron jobs |
+| `app/main.py` | FastAPI | MODIFY — include rainfall router |
+| `db/schema.sql` | SQL | MODIFY — extend `mark_stale_records()` for new tables |
+
+### Do's and Don'ts — Rainfall Enhancement
+
+**Do's**
+- DO use Open-Meteo for historical data — it's free, no auth, and covers India back to 1940.
+- DO store lat/lon in `imd_districts_ref` — the loader uses these directly; no geocoding at runtime.
+- DO compute `normal_rainfall_mm` from your own loaded data (average of the same month across all years) rather than depending on an external normal dataset.
+- DO set `data_source='open_meteo'` so future migrations to IMD's own API are traceable.
+- DO run `historical_rainfall_loader` on startup in dev — it's idempotent and fast for < 37 districts.
+
+**Don'ts**
+- DON'T fetch daily precipitation and store it row-by-row — aggregate to monthly in the loader before writing to DB; one row per (district, year, month) is sufficient for crop planning.
+- DON'T hard-code seasonal category thresholds — the forecast_category comes from IMD directly; do not derive it from probabilities yourself.
+- DON'T block the verdict on missing outlook data — if `imd_seasonal_outlook` has no row for this district+year+season, set `confidence='low'` and skip the outlook factor in the verdict logic.
+- DON'T add new crops to `crop_water_requirements` without an ICAR citation — incorrect water requirements will generate misleading farmer recommendations.
+
+### Acceptance Criteria — Task 1.5
+
+| Check | Target |
+|-------|--------|
+| Historical data loaded | ≥ 10 years × 12 months × 37 districts = ≥ 4,440 rows in `imd_historical_rainfall` |
+| Seasonal outlook loaded | Current season forecast for ≥ 30 districts in `imd_seasonal_outlook` |
+| Crop water requirements | All 8 crops present in `crop_water_requirements` |
+| Crop suitability API | `GET /api/rainfall/Chennai/crop-suitability/sugarcane` returns 200 with verdict, surplus_deficit_mm, recommendation |
+| Verdict correctness | Manually verify 5 districts against known ICAR suitability zones |
+| Response latency | `GET /api/rainfall/{district}/crop-suitability/{crop}` < 500ms |
+| Dry months | Response includes `dry_months` list for supplemental irrigation guidance |
+| Mock mode | `IMD_DEV_MOCK=true` produces plausible data for all 3 new tables |
