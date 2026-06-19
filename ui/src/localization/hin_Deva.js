@@ -4,6 +4,17 @@ const hin_Deva = {
   stepLocation: 'स्थान',
   stepFarm:     'खेत विवरण',
 
+  stepIdentity:  'आपकी जानकारी',
+  optional:      '(वैकल्पिक)',
+
+  identityTitle:    'आपकी जानकारी',
+  identitySubtitle: 'यह आपके सलाह अनुभव को व्यक्तिगत बनाने में मदद करता है।',
+  nameLabel:        'आपका नाम',
+  namePlaceholder:  'जैसे: रामेश्वर',
+  phoneLabel:       'फ़ोन नंबर',
+  phonePlaceholder: '10 अंकों का मोबाइल नंबर',
+  nextIdentityBtn:  'अगला: आपका स्थान →',
+
   locationTitle:        'आपका स्थान',
   locationSubtitle:     'हम स्थानीय मौसम और मिट्टी की जानकारी के लिए आपके जिले का उपयोग करते हैं।',
   stateLabel:           'राज्य',

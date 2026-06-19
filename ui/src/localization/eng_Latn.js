@@ -4,6 +4,17 @@ const eng_Latn = {
   stepLocation: 'Location',
   stepFarm:     'Farm Details',
 
+  stepIdentity:  'Your Details',
+  optional:      '(optional)',
+
+  identityTitle:    'Your Details',
+  identitySubtitle: 'This helps us personalise your advisory experience.',
+  nameLabel:        'Your Name',
+  namePlaceholder:  'e.g. Rameshwar',
+  phoneLabel:       'Phone Number',
+  phonePlaceholder: '10-digit mobile number',
+  nextIdentityBtn:  'Next: Your Location →',
+
   locationTitle:        'Your Location',
   locationSubtitle:     'We use your district to fetch local weather and soil data.',
   stateLabel:           'State',

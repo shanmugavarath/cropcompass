@@ -4,6 +4,17 @@ const tel_Telu = {
   stepLocation: 'స్థానం',
   stepFarm:     'వ్యవసాయ వివరాలు',
 
+  stepIdentity:  'మీ వివరాలు',
+  optional:      '(ఐచ్ఛికం)',
+
+  identityTitle:    'మీ వివరాలు',
+  identitySubtitle: 'ఇది మీ సలహా అనుభవాన్ని వ్యక్తిగతీకరించడానికి సహాయపడుతుంది.',
+  nameLabel:        'మీ పేరు',
+  namePlaceholder:  'ఉదా: రామేశ్వర్',
+  phoneLabel:       'ఫోన్ నంబర్',
+  phonePlaceholder: '10 అంకెల మొబైల్ నంబర్',
+  nextIdentityBtn:  'తదుపరి: మీ స్థానం →',
+
   locationTitle:        'మీ స్థానం',
   locationSubtitle:     'స్థానిక వాతావరణ మరియు నేల సమాచారం కోసం మీ జిల్లాను ఉపయోగిస్తాము.',
   stateLabel:           'రాష్ట్రం',

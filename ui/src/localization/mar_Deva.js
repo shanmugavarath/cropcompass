@@ -4,6 +4,17 @@ const mar_Deva = {
   stepLocation: 'स्थान',
   stepFarm:     'शेत तपशील',
 
+  stepIdentity:  'तुमची माहिती',
+  optional:      '(पर्यायी)',
+
+  identityTitle:    'तुमची माहिती',
+  identitySubtitle: 'हे तुमचा सल्ला अनुभव वैयक्तिक करण्यास मदत करते.',
+  nameLabel:        'तुमचे नाव',
+  namePlaceholder:  'उदा: रामेश्वर',
+  phoneLabel:       'फोन नंबर',
+  phonePlaceholder: '10 अंकी मोबाइल नंबर',
+  nextIdentityBtn:  'पुढे: तुमचे ठिकाण →',
+
   locationTitle:        'आपले स्थान',
   locationSubtitle:     'स्थानिक हवामान आणि माती माहितीसाठी आम्ही आपल्या जिल्ह्याचा वापर करतो.',
   stateLabel:           'राज्य',

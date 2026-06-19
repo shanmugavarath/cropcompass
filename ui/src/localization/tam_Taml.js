@@ -4,6 +4,17 @@ const tam_Taml = {
   stepLocation: 'இடம்',
   stepFarm:     'பண்ணை விவரம்',
 
+  stepIdentity:  'உங்கள் விவரங்கள்',
+  optional:      '(விருப்பமானது)',
+
+  identityTitle:    'உங்கள் விவரங்கள்',
+  identitySubtitle: 'இது உங்கள் ஆலோசனை அனுபவத்தை தனிப்பயனாக்க உதவுகிறது.',
+  nameLabel:        'உங்கள் பெயர்',
+  namePlaceholder:  'எ.கா: ராமேஸ்வர்',
+  phoneLabel:       'தொலைபேசி எண்',
+  phonePlaceholder: '10 இலக்க மொபைல் எண்',
+  nextIdentityBtn:  'அடுத்து: உங்கள் இடம் →',
+
   locationTitle:        'உங்கள் இடம்',
   locationSubtitle:     'உள்ளூர் வானிலை மற்றும் மண் தகவலுக்கு உங்கள் மாவட்டத்தை பயன்படுத்துகிறோம்.',
   stateLabel:           'மாநிலம்',

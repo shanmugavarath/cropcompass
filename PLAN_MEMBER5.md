@@ -55,6 +55,9 @@ real-time path is Socket.IO (§1.3). The mock backend must honour both.
 ### 1.2 `FarmerCreate` schema (owned by Member 1 — task 1.3)
 ```jsonc
 {
+  "name":         "Rameshwar",          // optional — collected on step 2 but not required
+  "phone":        "9876543210",         // optional — 10 digits, collected on step 2 but not required
+  "state":        "maharashtra",        // used for district filtering; sent with profile
   "district":     "Pune",
   "soil_type":    "clay_loam",          // clay | loam | sandy | clay_loam | silt_loam
   "crop_variety": "Soybean JS-335",
@@ -62,7 +65,7 @@ real-time path is Socket.IO (§1.3). The mock backend must honour both.
   "lang_pref":    "hin_Deva"            // FLORES-200 code
 }
 ```
-FLORES codes: `hin_Deva, tam_Taml, tel_Telu, mar_Deva, pan_Guru, eng_Latn`.
+FLORES codes: `hin_Deva, mar_Deva, tam_Taml, tel_Telu, pan_Guru, ben_Beng, kan_Knda, mal_Mlym, eng_Latn`.
 
 ### 1.3 Chat transport — Socket.IO (owned by Member 1 backend + Member 3 agent)
 - **Emit** `chat` → `{ farmer_id, message }`
@@ -151,38 +154,60 @@ ui/
 
 ## 3. Task 4.3 — Farmer Onboarding & Profile Capture
 
-**Deliverable:** 3-step onboarding form, completes in < 3 minutes, posts `FarmerCreate`.
+**Deliverable:** 4-step onboarding wizard, completes in < 3 minutes, posts `FarmerCreate`.
 
 ### 3.1 Flow (route `/onboarding`, gated before `/chat`)
 ```
-Step 1 — Language:   हिंदी | தமிழ் | తెలుగు | मराठी | ਪੰਜਾਬੀ | English
-                     + live preview "नमस्ते, किसान!" to confirm the font renders
-Step 2 — Location:   State dropdown → District dropdown (filtered; from GET /api/districts)
-Step 3 — Farm:       Soil type (5 radio + icons) · Crop variety (autocomplete) · Growth stage (4 radio)
+Step 1 — Language:      हिंदी | मराठी | தமிழ் | తెలుగు | ਪੰਜਾਬੀ | বাংলা | ಕನ್ನಡ | മലയാളം | English
+                        + live preview "नमस्ते, किसान!" to confirm the font renders
+                        UI always shown in English — user hasn't chosen a language yet
+Step 2 — Your Details:  Name (optional) · Phone number (optional, 10-digit, digits-only input)
+                        Rendered in the farmer's chosen language via localization strings
+Step 3 — Location:      State dropdown → District dropdown (filtered; from GET /api/districts)
+                        Rendered in the farmer's chosen language
+Step 4 — Farm:          Soil type (5 radio + icons) · Crop variety (autocomplete) · Growth stage (4 radio)
+                        Rendered in the farmer's chosen language
 ```
+
+Progress bar shows all 4 steps with localized labels; labels update live as soon as the
+language is selected on step 1.
 
 ### 3.2 Submit
 ```js
 const { data } = await api.post('/api/profile', {
-  district, soil_type, crop_variety, growth_stage,
-  lang_pref: LANG_TO_FLORES[language],
+  name:         formData.name.trim(),         // empty string if not provided
+  phone:        formData.phone.trim(),        // empty string if not provided
+  state:        formData.state,
+  district:     formData.district,
+  soil_type:    formData.soil_type,
+  crop_variety: formData.crop_variety.trim(),
+  growth_stage: formData.growth_stage,
+  lang_pref:    formData.lang_pref,
 });
 localStorage.setItem('farmer_id', data.farmer_id);
 navigate('/chat');
 ```
 
 ### 3.3 Validation & state
-- All fields required; `crop_variety` ≥ 2 chars; district must be in the master list (server
-  authoritative, but pre-filter client-side from `/api/districts`).
+- **Step 2 (Identity):** name and phone are **optional** — no validation errors; fields accept
+  free input (phone input strips non-digits and caps at 10 chars as a UX convenience).
+  Both labels show a localised "(optional)" hint.
+- **Step 3 (Location):** state and district required; district must be in the master list
+  (server authoritative, but pre-filter client-side from `/api/districts`).
+- **Step 4 (Farm):** soil type, crop variety (≥ 2 chars), and growth stage required.
 - On app load, read `farmer_id` from `localStorage`; if present skip onboarding → `/chat`.
-- Surface server 4xx (e.g. unknown district) inline on Step 1.
-- Maintain a `localization` folder that contains the translation strings for all the static text visible during farmer onboarding.
+- Surface server 4xx (e.g. unknown district) inline on step 4 submission.
+- `ui/src/localization/` holds one flat JS export per language (`hin_Deva.js`, `mar_Deva.js`,
+  `tam_Taml.js`, `tel_Telu.js`, `pan_Guru.js`, `eng_Latn.js`) aggregated by `index.js`.
+  Wizard selects active strings via `STRINGS[lang_pref] ?? STRINGS['eng_Latn']`.
 
 ### 3.4 Acceptance criteria
 - New user completes onboarding → lands in chat with a valid `farmer_id`.
 - Returning user (localStorage set) skips straight to chat.
 - Language preview renders correctly for all 6 options.
-- Once language is set, then the next pages are rendered in the localized language.
+- Steps 2–4 rendered in the farmer's chosen language immediately after step 1.
+- Name and phone fields are skippable with no error — wizard advances normally.
+- "New Chat" button in the chat header clears `farmer_id` and navigates back to `/onboarding`.
 
 ---
 
@@ -307,7 +332,13 @@ feature/frontend ─────────────────────
 ---
 
 ## 8. Definition of Done (Member 5)
-- [ ] `ui/` React app: onboarding (4.3) + chat (4.1), Indic rendering, verdict + citations display.
+- [x] `ui/` React app: 4-step onboarding (4.3) + chat (4.1), Indic rendering, verdict + citations display.
+- [x] Language picker (step 1, English UI) with live Indic font preview.
+- [x] Identity step (step 2) — optional name + phone, rendered in farmer's chosen language.
+- [x] Location step (step 3) — state + district dropdowns, localised labels.
+- [x] Farm step (step 4) — soil/crop/stage, localised labels.
+- [x] `ui/src/localization/` — one file per language; wizard switches strings live on language pick.
+- [x] "New Chat" button in chat header — clears `farmer_id`, navigates to `/onboarding`.
 - [ ] Runs standalone against the mock backend (`VITE_USE_MOCK=true`).
 - [ ] Cuts over to the real backend with a single flag flip + env change.
 - [ ] `tests/test_e2e.py` + `tests/test_latency.py` green against the integrated stack.

@@ -1,3 +1,6 @@
+/* ── Google Fonts — Bengali, Kannada, Malayalam (no local woff2 bundled yet) ── */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500&family=Noto+Sans+Kannada:wght@400;500&family=Noto+Sans+Malayalam:wght@400;500&display=swap');
+
 /* ── Local fonts — served from public/fonts/ (no CDN, demo-day resilient) ── */
 
 /* DM Sans — UI body font */
@@ -102,6 +105,9 @@
   --font-taml:    'Noto Sans Tamil',      'DM Sans', sans-serif;
   --font-telu:    'Noto Sans Telugu',     'DM Sans', sans-serif;
   --font-guru:    'Noto Sans Gurmukhi',   'DM Sans', sans-serif;
+  --font-beng:    'Noto Sans Bengali',    'DM Sans', sans-serif;
+  --font-knda:    'Noto Sans Kannada',    'DM Sans', sans-serif;
+  --font-mlym:    'Noto Sans Malayalam',  'DM Sans', sans-serif;
 
   font-family: var(--font-body);
   font-size: 16px;
@@ -307,6 +313,9 @@ p { margin: 0; }
 .rec-card__text--taml { font-family: var(--font-taml); }
 .rec-card__text--telu { font-family: var(--font-telu); }
 .rec-card__text--guru { font-family: var(--font-guru); }
+.rec-card__text--beng { font-family: var(--font-beng); }
+.rec-card__text--knda { font-family: var(--font-knda); }
+.rec-card__text--mlym { font-family: var(--font-mlym); }
 
 .rec-card__footer {
   display: flex;
@@ -512,6 +521,7 @@ p { margin: 0; }
 }
 
 .field-error { font-size: 12px; color: var(--color-terracotta); }
+.field-optional { font-size: 12px; color: var(--color-brown); font-weight: 400; opacity: 0.7; }
 
 /* Soil type radio cards — 2-col grid */
 .soil-grid {

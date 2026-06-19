@@ -53,11 +53,14 @@ Sent as JSON body on `POST /api/profile`.
 
 ```jsonc
 {
-  "district":     "Pune",
+  "name":         "Rameshwar",        //
+  "phone":        "9876543210",       //
+  "state":        "maharashtra",      //
+  "district":     "Pune",             //
   "soil_type":    "clay_loam",        // enum: clay | loam | sandy | clay_loam | silt_loam
   "crop_variety": "Soybean JS-335",   // free text, minimum 2 characters
   "growth_stage": "sowing",           // enum: sowing | vegetative | flowering | maturity
-  "lang_pref":    "hin_Deva"          // FLORES-200 code (see §7)
+  "lang_pref":    "hin_Deva"          // FLORES-200 code (see §7) — one of 9 supported languages
 }
 ```
 
@@ -70,6 +73,7 @@ Returned on both `POST /api/profile` and `GET /api/profile/{farmer_id}`.
 ```jsonc
 {
   "farmer_id":    "<uuid>",
+  "name":         "Rameshwar",        
   "district":     "Pune",
   "soil_type":    "clay_loam",
   "crop_variety": "Soybean JS-335",
@@ -132,14 +136,17 @@ Returned by `POST /api/chat` and emitted by the server on the `response` Socket.
 
 ## 7. FLORES-200 Language Codes
 
-| Display label | `lang_pref` value |
-|--------------|-------------------|
-| हिंदी | `hin_Deva` |
-| தமிழ் | `tam_Taml` |
-| తెలుగు | `tel_Telu` |
-| मराठी | `mar_Deva` |
-| ਪੰਜਾਬੀ | `pan_Guru` |
-| English | `eng_Latn` |
+| Display label | `lang_pref` value | BCP-47 | Noto font subset |
+|--------------|-------------------|--------|-----------------|
+| हिंदी | `hin_Deva` | `hi` | Noto Sans Devanagari |
+| मराठी | `mar_Deva` | `mr` | Noto Sans Devanagari |
+| தமிழ் | `tam_Taml` | `ta` | Noto Sans Tamil |
+| తెలుగు | `tel_Telu` | `te` | Noto Sans Telugu |
+| ਪੰਜਾਬੀ | `pan_Guru` | `pa` | Noto Sans Gurmukhi |
+| বাংলা | `ben_Beng` | `bn` | Noto Sans Bengali |
+| ಕನ್ನಡ | `kan_Knda` | `kn` | Noto Sans Kannada |
+| മലയാളം | `mal_Mlym` | `ml` | Noto Sans Malayalam |
+| English | `eng_Latn` | `en` | — |
 
 ---
 

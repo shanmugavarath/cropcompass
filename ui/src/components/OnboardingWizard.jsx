@@ -44,32 +44,47 @@ const COMMON_CROPS = [
 
 const LANG_OPTIONS = [
   {
-    value: 'hin_Deva', native: 'हिंदी',  label: 'Hindi',
+    value: 'hin_Deva', native: 'हिंदी',   label: 'Hindi',
     font: 'var(--font-deva)', bcp47: 'hi',
     preview: 'नमस्ते, किसान! CropCompass में आपका स्वागत है।',
   },
   {
-    value: 'mar_Deva', native: 'मराठी',  label: 'Marathi',
+    value: 'mar_Deva', native: 'मराठी',   label: 'Marathi',
     font: 'var(--font-deva)', bcp47: 'mr',
     preview: 'नमस्कार, शेतकरी! CropCompass मध्ये आपले स्वागत आहे।',
   },
   {
-    value: 'tam_Taml', native: 'தமிழ்',  label: 'Tamil',
+    value: 'tam_Taml', native: 'தமிழ்',   label: 'Tamil',
     font: 'var(--font-taml)', bcp47: 'ta',
     preview: 'வணக்கம், விவசாயி! CropCompass-இல் வரவேற்கிறோம்.',
   },
   {
-    value: 'tel_Telu', native: 'తెలుగు', label: 'Telugu',
+    value: 'tel_Telu', native: 'తెలుగు',  label: 'Telugu',
     font: 'var(--font-telu)', bcp47: 'te',
     preview: 'నమస్కారం, రైతు! CropCompass కి స్వాగతం.',
   },
   {
-    value: 'pan_Guru', native: 'ਪੰਜਾਬੀ', label: 'Punjabi',
+    value: 'pan_Guru', native: 'ਪੰਜਾਬੀ',  label: 'Punjabi',
     font: 'var(--font-guru)', bcp47: 'pa',
     preview: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ, ਕਿਸਾਨ! CropCompass ਵਿੱਚ ਜੀ ਆਇਆਂ ਨੂੰ।',
   },
   {
-    value: 'eng_Latn', native: 'English', label: 'English',
+    value: 'ben_Beng', native: 'বাংলা',   label: 'Bengali',
+    font: 'var(--font-beng)', bcp47: 'bn',
+    preview: 'নমস্কার, কৃষক! CropCompass-এ আপনাকে স্বাগতম।',
+  },
+  {
+    value: 'kan_Knda', native: 'ಕನ್ನಡ',   label: 'Kannada',
+    font: 'var(--font-knda)', bcp47: 'kn',
+    preview: 'ನಮಸ್ಕಾರ, ರೈತ! CropCompass-ಗೆ ಸ್ವಾಗತ.',
+  },
+  {
+    value: 'mal_Mlym', native: 'മലയാളം', label: 'Malayalam',
+    font: 'var(--font-mlym)', bcp47: 'ml',
+    preview: 'നമസ്കാരം, കർഷകൻ! CropCompass-ലേക്ക് സ്വാഗതം.',
+  },
+  {
+    value: 'eng_Latn', native: 'English',  label: 'English',
     font: 'var(--font-body)', bcp47: 'en',
     preview: 'Hello, Farmer! Welcome to CropCompass.',
   },
@@ -82,7 +97,8 @@ export default function OnboardingWizard() {
   const [step, setStep] = useState(1)
   const [apiDistricts, setApiDistricts] = useState([])
   const [formData, setFormData] = useState({
-    lang_pref: '', state: '', district: '',
+    lang_pref: '', name: '', phone: '',
+    state: '', district: '',
     soil_type: '', crop_variety: '', growth_stage: '',
   })
   const [errors, setErrors] = useState({})
@@ -99,7 +115,7 @@ export default function OnboardingWizard() {
   const t = STRINGS[formData.lang_pref] ?? STRINGS['eng_Latn']
   const selectedLang = LANG_OPTIONS.find(l => l.value === formData.lang_pref)
   const stateDistricts = formData.state ? (STATE_DISTRICTS[formData.state] ?? []) : []
-  const stepLabels = [t.stepLang, t.stepLocation, t.stepFarm]
+  const stepLabels = [t.stepLang, t.stepIdentity, t.stepLocation, t.stepFarm]
   const progressPct = ((step - 1) / stepLabels.length) * 100
 
   function setField(field, value) {
@@ -113,6 +129,10 @@ export default function OnboardingWizard() {
   }
 
   function validateStep2() {
+    return {}
+  }
+
+  function validateStep3() {
     const errs = {}
     if (!formData.state) errs.state = t.errorState
     if (!formData.district) errs.district = t.errorDistrict
@@ -122,7 +142,7 @@ export default function OnboardingWizard() {
     return errs
   }
 
-  function validateStep3() {
+  function validateStep4() {
     const errs = {}
     if (!formData.soil_type) errs.soil_type = t.errorSoil
     if (!formData.crop_variety || formData.crop_variety.trim().length < 2) errs.crop_variety = t.errorCrop
@@ -131,19 +151,24 @@ export default function OnboardingWizard() {
   }
 
   function nextStep() {
-    const errs = step === 1 ? validateStep1() : validateStep2()
+    const errs = step === 1 ? validateStep1()
+                : step === 2 ? validateStep2()
+                : validateStep3()
     if (Object.keys(errs).length) { setErrors(errs); return }
     setErrors({})
     setStep(s => s + 1)
   }
 
   async function handleSubmit() {
-    const errs = validateStep3()
+    const errs = validateStep4()
     if (Object.keys(errs).length) { setErrors(errs); return }
     setSubmitting(true)
     setServerError('')
     try {
       const { data } = await client.post('/api/profile', {
+        name:         formData.name.trim(),
+        phone:        formData.phone.trim(),
+        state:        formData.state,
         district:     formData.district,
         soil_type:    formData.soil_type,
         crop_variety: formData.crop_variety.trim(),
@@ -201,11 +226,10 @@ export default function OnboardingWizard() {
           />
         )}
         {step === 2 && (
-          <StepLocation
+          <StepIdentity
             formData={formData}
             errors={errors}
             setField={setField}
-            stateDistricts={stateDistricts}
             selectedLang={selectedLang}
             t={t}
             onBack={() => setStep(1)}
@@ -213,6 +237,18 @@ export default function OnboardingWizard() {
           />
         )}
         {step === 3 && (
+          <StepLocation
+            formData={formData}
+            errors={errors}
+            setField={setField}
+            stateDistricts={stateDistricts}
+            selectedLang={selectedLang}
+            t={t}
+            onBack={() => setStep(2)}
+            onNext={nextStep}
+          />
+        )}
+        {step === 4 && (
           <StepFarm
             formData={formData}
             errors={errors}
@@ -221,7 +257,7 @@ export default function OnboardingWizard() {
             t={t}
             serverError={serverError}
             submitting={submitting}
-            onBack={() => setStep(2)}
+            onBack={() => setStep(3)}
             onSubmit={handleSubmit}
           />
         )}
@@ -283,13 +319,64 @@ function StepLang({ formData, errors, setField, selectedLang, onNext }) {
       )}
 
       <div className="wizard-nav">
-        <button className="btn-next" onClick={onNext}>Next: Your Location →</button>
+        <button className="btn-next" onClick={onNext}>Next: Your Details →</button>
       </div>
     </>
   )
 }
 
-// ── Step 2: Location — rendered in the chosen language ───────────────────────
+// ── Step 2: Identity — name + phone, rendered in the chosen language ─────────
+
+function StepIdentity({ formData, errors, setField, selectedLang, t, onBack, onNext }) {
+  const langAttr   = selectedLang?.bcp47
+  const fontFamily = selectedLang?.font
+
+  return (
+    <div lang={langAttr} style={{ fontFamily }}>
+      <h2>{t.identityTitle}</h2>
+      <p className="wizard-card__subtitle">{t.identitySubtitle}</p>
+
+      <div className="field-group">
+        <div className="field">
+          <label htmlFor="name-input">
+            {t.nameLabel} <span className="field-optional">{t.optional}</span>
+          </label>
+          <input
+            id="name-input"
+            type="text"
+            placeholder={t.namePlaceholder}
+            value={formData.name}
+            onChange={e => setField('name', e.target.value)}
+            autoComplete="name"
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="phone-input">
+            {t.phoneLabel} <span className="field-optional">{t.optional}</span>
+          </label>
+          <input
+            id="phone-input"
+            type="tel"
+            inputMode="numeric"
+            placeholder={t.phonePlaceholder}
+            value={formData.phone}
+            onChange={e => setField('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+            autoComplete="tel"
+            maxLength={10}
+          />
+        </div>
+      </div>
+
+      <div className="wizard-nav">
+        <button className="btn-back" onClick={onBack}>{t.backBtn}</button>
+        <button className="btn-next" onClick={onNext}>{t.nextIdentityBtn}</button>
+      </div>
+    </div>
+  )
+}
+
+// ── Step 3: Location — rendered in the chosen language ───────────────────────
 
 function StepLocation({ formData, errors, setField, stateDistricts, selectedLang, t, onBack, onNext }) {
   const langAttr   = selectedLang?.bcp47
@@ -343,7 +430,7 @@ function StepLocation({ formData, errors, setField, stateDistricts, selectedLang
   )
 }
 
-// ── Step 3: Farm details — rendered in the chosen language ───────────────────
+// ── Step 4: Farm details — rendered in the chosen language ───────────────────
 
 function StepFarm({ formData, errors, setField, selectedLang, t, serverError, submitting, onBack, onSubmit }) {
   const langAttr   = selectedLang?.bcp47

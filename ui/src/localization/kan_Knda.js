@@ -1,0 +1,53 @@
+const kan_Knda = {
+  wizardSubtitle: 'ವೈಯಕ್ತಿಕ ಬೆಳೆ ಸಲಹೆ ಪಡೆಯಲು ನಿಮ್ಮ ಪ್ರೊಫೈಲ್ ಹೊಂದಿಸಿ',
+  stepLang:     'ಭಾಷೆ',
+  stepIdentity: 'ನಿಮ್ಮ ವಿವರಗಳು',
+  stepLocation: 'ಸ್ಥಳ',
+  stepFarm:     'ಕೃಷಿ ವಿವರಗಳು',
+  optional:     '(ಐಚ್ಛಿಕ)',
+
+  identityTitle:    'ನಿಮ್ಮ ವಿವರಗಳು',
+  identitySubtitle: 'ಇದು ನಿಮ್ಮ ಸಲಹಾ ಅನುಭವವನ್ನು ವೈಯಕ್ತಿಕಗೊಳಿಸಲು ಸಹಾಯ ಮಾಡುತ್ತದೆ.',
+  nameLabel:        'ನಿಮ್ಮ ಹೆಸರು',
+  namePlaceholder:  'ಉದಾ: ರಾಮೇಶ್ವರ',
+  phoneLabel:       'ಫೋನ್ ಸಂಖ್ಯೆ',
+  phonePlaceholder: '10 ಅಂಕಿಯ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ',
+  nextIdentityBtn:  'ಮುಂದೆ: ನಿಮ್ಮ ಸ್ಥಳ →',
+
+  locationTitle:        'ನಿಮ್ಮ ಸ್ಥಳ',
+  locationSubtitle:     'ಸ್ಥಳೀಯ ಹವಾಮಾನ ಮತ್ತು ಮಣ್ಣಿನ ಮಾಹಿತಿಗಾಗಿ ನಿಮ್ಮ ಜಿಲ್ಲೆಯನ್ನು ಬಳಸುತ್ತೇವೆ.',
+  stateLabel:           'ರಾಜ್ಯ',
+  statePlaceholder:     '— ರಾಜ್ಯ ಆಯ್ಕೆ ಮಾಡಿ —',
+  districtLabel:        'ಜಿಲ್ಲೆ',
+  districtPlaceholder:  '— ಜಿಲ್ಲೆ ಆಯ್ಕೆ ಮಾಡಿ —',
+  errorState:           'ದಯವಿಟ್ಟು ನಿಮ್ಮ ರಾಜ್ಯ ಆಯ್ಕೆ ಮಾಡಿ.',
+  errorDistrict:        'ದಯವಿಟ್ಟು ನಿಮ್ಮ ಜಿಲ್ಲೆ ಆಯ್ಕೆ ಮಾಡಿ.',
+  errorDistrictNetwork: 'ಈ ಜಿಲ್ಲೆ ನೆಟ್‌ವರ್ಕ್‌ನಲ್ಲಿಲ್ಲ. ಬೇರೊಂದನ್ನು ಆಯ್ಕೆ ಮಾಡಿ.',
+  backBtn:              '← ಹಿಂದೆ',
+  nextLocationBtn:      'ಮುಂದೆ: ಕೃಷಿ ವಿವರಗಳು →',
+
+  farmTitle:       'ನಿಮ್ಮ ಕೃಷಿ',
+  farmSubtitle:    'ಮಣ್ಣು ಮತ್ತು ಗೊಬ್ಬರದ ಸಲಹೆ ನೀಡಲು ಇದು ಸಹಾಯ ಮಾಡುತ್ತದೆ.',
+  soilLabel:       'ಮಣ್ಣಿನ ವಿಧ',
+  cropLabel:       'ಬೆಳೆ ಪ್ರಭೇದ',
+  cropPlaceholder: 'ಉದಾ: ಸೋಯಾಬೀನ್ JS-335',
+  stageLabel:      'ಬೆಳವಣಿಗೆ ಹಂತ',
+  errorSoil:       'ದಯವಿಟ್ಟು ಮಣ್ಣಿನ ವಿಧ ಆಯ್ಕೆ ಮಾಡಿ.',
+  errorCrop:       'ದಯವಿಟ್ಟು ಬೆಳೆ ಪ್ರಭೇದ ನಮೂದಿಸಿ (ಕನಿಷ್ಠ 2 ಅಕ್ಷರಗಳು).',
+  errorStage:      'ದಯವಿಟ್ಟು ಬೆಳವಣಿಗೆ ಹಂತ ಆಯ್ಕೆ ಮಾಡಿ.',
+  submitBtn:       'ಸಲಹೆ ಪ್ರಾರಂಭಿಸಿ →',
+  submittingBtn:   'ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ…',
+
+  soilClay:     { label: 'ಜೇಡಿ ಮಣ್ಣು',     desc: 'ಭಾರ, ನೀರು ಹಿಡಿದಿಡುವ' },
+  soilLoam:     { label: 'ಲೋಮ್',           desc: 'ಸಮತೋಲಿತ, ಫಲವತ್ತಾದ' },
+  soilSandy:    { label: 'ಮರಳು ಮಣ್ಣು',    desc: 'ಹಗುರ, ತ್ವರಿತ ಒಳಚರಂಡಿ' },
+  soilClayLoam: { label: 'ಜೇಡಿ ಲೋಮ್',     desc: 'ಮಧ್ಯಮ ಭಾರ' },
+  soilSiltLoam: { label: 'ಹೂಳು ಲೋಮ್',    desc: 'ತೇವಾಂಶ ಉಳಿಸಿಕೊಳ್ಳುವ' },
+
+  stageSowing:     { label: 'ಬಿತ್ತನೆ',      desc: 'ಬೀಜ ನೆಡುವಿಕೆ' },
+  stageVegetative: { label: 'ಸಸ್ಯ ಹಂತ',    desc: 'ಎಲೆ & ಕಾಂಡ ಬೆಳವಣಿಗೆ' },
+  stageFlowering:  { label: 'ಹೂಬಿಡುವ ಹಂತ', desc: 'ಹೂವು & ಪರಾಗಸ್ಪರ್ಶ' },
+  stageMaturity:   { label: 'ಪರಿಪಕ್ವತೆ',   desc: 'ಕೊಯ್ಲಿಗೆ ಸಿದ್ಧ' },
+}
+
+export default kan_Knda

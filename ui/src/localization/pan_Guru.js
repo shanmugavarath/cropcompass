@@ -4,6 +4,17 @@ const pan_Guru = {
   stepLocation: 'ਸਥਾਨ',
   stepFarm:     'ਖੇਤ ਵੇਰਵਾ',
 
+  stepIdentity:  'ਤੁਹਾਡੀ ਜਾਣਕਾਰੀ',
+  optional:      '(ਵਿਕਲਪਿਕ)',
+
+  identityTitle:    'ਤੁਹਾਡੀ ਜਾਣਕਾਰੀ',
+  identitySubtitle: 'ਇਹ ਤੁਹਾਡੇ ਸਲਾਹ ਤਜ਼ਰਬੇ ਨੂੰ ਨਿੱਜੀ ਬਣਾਉਣ ਵਿੱਚ ਮਦਦ ਕਰਦਾ ਹੈ।',
+  nameLabel:        'ਤੁਹਾਡਾ ਨਾਮ',
+  namePlaceholder:  'ਜਿਵੇਂ: ਰਾਮੇਸ਼ਵਰ',
+  phoneLabel:       'ਫ਼ੋਨ ਨੰਬਰ',
+  phonePlaceholder: '10 ਅੰਕਾਂ ਵਾਲਾ ਮੋਬਾਈਲ ਨੰਬਰ',
+  nextIdentityBtn:  'ਅਗਲਾ: ਤੁਹਾਡਾ ਸਥਾਨ →',
+
   locationTitle:        'ਤੁਹਾਡਾ ਸਥਾਨ',
   locationSubtitle:     'ਅਸੀਂ ਸਥਾਨਕ ਮੌਸਮ ਅਤੇ ਮਿੱਟੀ ਦੀ ਜਾਣਕਾਰੀ ਲਈ ਤੁਹਾਡੇ ਜ਼ਿਲ੍ਹੇ ਦੀ ਵਰਤੋਂ ਕਰਦੇ ਹਾਂ।',
   stateLabel:           'ਸੂਬਾ',
