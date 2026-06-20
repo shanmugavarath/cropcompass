@@ -48,3 +48,6 @@ trnalsation.txt
 
 # Colab notebook (convenience, not source code)
 colab_normalize.ipynb
+
+# Local testing (rigorous validation, not committed)
+test_local/
