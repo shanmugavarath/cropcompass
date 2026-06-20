@@ -2,7 +2,7 @@
 tests/test_translation.py — IndicTrans2 translation quality + contract tests.
 
 Fast tests (no model): test_*_fallback, test_split_sentences
-Slow tests (load model): marked @pytest.mark.slow — run with `pytest -m slow --live`
+Slow tests (load model): marked @pytest.mark.slow — run with `pytest -m slow`
 """
 
 import pytest
@@ -50,7 +50,7 @@ class TestFallback:
     def test_unsupported_lang_fallback(self):
         svc = object.__new__(TranslationService)
         svc.SUPPORTED = TranslationService.SUPPORTED
-        result = svc.translate_output("Apply fertilizer.", "xyz_Unknown")
+        result = svc.translate("Apply fertilizer.", "xyz_Unknown")
         assert result["lang"] == "eng_Latn"
         assert result["translated"] == "Apply fertilizer."
         assert result["fallback"] is True
@@ -58,7 +58,7 @@ class TestFallback:
     def test_english_passthrough(self):
         svc = object.__new__(TranslationService)
         svc.SUPPORTED = TranslationService.SUPPORTED
-        result = svc.translate_output("Irrigate now.", "eng_Latn")
+        result = svc.translate("Irrigate now.", "eng_Latn")
         assert result["lang"] == "eng_Latn"
         assert result["translated"] == "Irrigate now."
         assert result["fallback"] is True
@@ -73,7 +73,7 @@ def svc():
 
 @pytest.mark.slow
 def test_hindi_translation(svc):
-    result = svc.translate_output("Sow your rice seeds now.", "hin_Deva")
+    result = svc.translate("Sow your rice seeds now.", "hin_Deva")
     assert result["lang"] == "hin_Deva"
     assert len(result["translated"]) > 5
     assert has_script(result["translated"], "hin_Deva")
@@ -81,28 +81,28 @@ def test_hindi_translation(svc):
 
 @pytest.mark.slow
 def test_tamil_translation(svc):
-    result = svc.translate_output("Apply urea fertilizer at 25 kg per acre.", "tam_Taml")
+    result = svc.translate("Apply urea fertilizer at 25 kg per acre.", "tam_Taml")
     assert result["lang"] == "tam_Taml"
     assert has_script(result["translated"], "tam_Taml")
 
 
 @pytest.mark.slow
 def test_telugu_translation(svc):
-    result = svc.translate_output("Irrigate the field before sowing.", "tel_Telu")
+    result = svc.translate("Irrigate the field before sowing.", "tel_Telu")
     assert result["lang"] == "tel_Telu"
     assert has_script(result["translated"], "tel_Telu")
 
 
 @pytest.mark.slow
 def test_marathi_translation(svc):
-    result = svc.translate_output("Use organic compost for better yield.", "mar_Deva")
+    result = svc.translate("Use organic compost for better yield.", "mar_Deva")
     assert result["lang"] == "mar_Deva"
     assert has_script(result["translated"], "mar_Deva")
 
 
 @pytest.mark.slow
 def test_punjabi_translation(svc):
-    result = svc.translate_output("Harvest wheat when the grain is hard.", "pan_Guru")
+    result = svc.translate("Harvest wheat when the grain is hard.", "pan_Guru")
     assert result["lang"] == "pan_Guru"
     assert has_script(result["translated"], "pan_Guru")
 
@@ -112,6 +112,6 @@ def test_translation_latency(svc):
     import time
     text = "Apply 25 kg urea per acre at the time of sowing. Ensure adequate soil moisture."
     start = time.perf_counter()
-    svc.translate_output(text, "hin_Deva")
+    svc.translate("Sow now.", "hin_Deva")
     elapsed = time.perf_counter() - start
     assert elapsed < 3.0, f"Translation took {elapsed:.1f}s — target is < 3s on CPU"

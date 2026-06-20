@@ -160,19 +160,19 @@ class TranslationService:
         # 3) re-join sentences back into one string per input
         return [" ".join(out[a:b]).strip() for (a, b) in spans]
 
-    def translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
+    def _translate(self, text: str, src_lang: str, tgt_lang: str) -> str:
+        """Internal: translate a single text with explicit src/tgt langs."""
         return self.translate_batch([text], src_lang, tgt_lang)[0]
 
-    def translate_output(self, text: str, tgt_lang: str) -> dict:
-        """Translate English recommendation to tgt_lang (FLORES-200 code).
+    def translate(self, text: str, tgt_lang: str) -> dict:
+        """Translate English text to tgt_lang (FLORES-200 code).
 
-        This is the API Member 3 calls for output translation.
-        Returns {"translated": str, "lang": str, "fallback": bool (optional)}.
-        Falls back to English if tgt_lang is eng_Latn or unsupported.
+        Returns {"translated": str, "lang": str}.
+        Falls back to English if tgt_lang not in supported set.
         """
-        if tgt_lang == "eng_Latn" or tgt_lang not in self.SUPPORTED:
+        if tgt_lang not in self.SUPPORTED or tgt_lang == "eng_Latn":
             return {"translated": text, "lang": "eng_Latn", "fallback": True}
-        translated = self.translate(text, "eng_Latn", tgt_lang)
+        translated = self._translate(text, "eng_Latn", tgt_lang)
         return {"translated": translated, "lang": tgt_lang}
 
 
@@ -180,11 +180,12 @@ if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--self-test", action="store_true")
-    ap.add_argument("--model", default=DEFAULT_INDIC_EN)
-    ap.add_argument("--src", default="tam_Taml")
-    ap.add_argument("--tgt", default="eng_Latn")
-    ap.add_argument("--text", default="நெல் பயிருக்கு இப்போது நீர் பாய்ச்ச வேண்டும்.")
+    ap.add_argument("--model", default=DEFAULT_EN_INDIC)
+    ap.add_argument("--tgt", default="hin_Deva")
+    ap.add_argument("--text", default="Sow your rice seeds now and apply basal fertilizer.")
     args = ap.parse_args()
     svc = TranslationService(args.model)
-    print(f"[{args.src} -> {args.tgt}] {args.text!r}")
-    print("->", svc.translate(args.text, args.src, args.tgt))
+    result = svc.translate(args.text, args.tgt)
+    print(f"[eng_Latn -> {args.tgt}] {args.text!r}")
+    print(f"-> {result['translated']}")
+    print(f"   lang={result['lang']}")
