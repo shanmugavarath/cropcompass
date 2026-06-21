@@ -41,6 +41,7 @@ class EvalCase(BaseModel):
 class RetrievedChunk(BaseModel):
     chunk_id: str
     similarity: float
+    text: str = ""   # chunk content; populated for the judge's faithfulness check
 
 
 class Trace(BaseModel):

@@ -83,5 +83,11 @@ async def fetch_retrieved_chunks(
         cid = c.get("chunk_id")
         if cid is None:
             continue
-        out.append(RetrievedChunk(chunk_id=cid, similarity=float(c.get("similarity", 0.0))))
+        out.append(
+            RetrievedChunk(
+                chunk_id=cid,
+                similarity=float(c.get("similarity", 0.0)),
+                text=c.get("text", "") or "",
+            )
+        )
     return out
