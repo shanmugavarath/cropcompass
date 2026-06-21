@@ -31,16 +31,16 @@ git merge --abort
 
 ### 1.2 Known conflicts
 
-| File | Conflict Type | Resolution |
-|---|---|---|
-| `docker-compose.yml` | Both branches define it | Merge into one unified compose (see Phase 3) |
-| `Dockerfile` | Both branches define it | Rename to `Dockerfile.api` and `Dockerfile.agent` |
-| `app/routes/chat.py` (stub) vs `src/agent_service/` (full impl) | Functional overlap | Replace stub with proxy/direct wire-up to AgentRunner |
-| `db/schema.sql` vs `db/conversations.sql` | Additive | Load as ordered init scripts |
+| File | Conflict Type | Resolution | Status |
+|---|---|---|---|
+| `docker-compose.yml` | Both branches define it | Merge into one unified compose (see Phase 3) | ✅ Done |
+| `Dockerfile` | Both branches define it | Rename to `Dockerfile.api` and `Dockerfile.agent` | ✅ Done |
+| `app/routes/chat.py` (stub) vs `src/agent_service/` (full impl) | Functional overlap | Replace stub with proxy/direct wire-up to AgentRunner | ✅ Done |
+| `db/schema.sql` vs `db/conversations.sql` | Additive | Load as ordered init scripts | ✅ Done |
 
 ---
 
-## Phase 2 — Database Schema Merge
+## Phase 2 — Database Schema Merge ✅
 
 ### 2.1 Unify DB init scripts (load in this order)
 
@@ -55,7 +55,9 @@ Map these to numbered `docker-entrypoint-initdb.d/` files so Postgres loads them
 03_vector.sql        ← mcp_servers/vector_server/schema.sql
 ```
 
-### 2.2 Fix `lang_pref` constraint
+### 2.2 Fix `lang_pref` constraint ✅ (SQL only) ⚠️ Pydantic schema not updated
+
+> **Remaining:** `app/schemas/farmer.py` `LangPref` Literal still lists only 6 languages — `ben_Beng`, `kan_Knda`, `mal_Mlym` must be added or the API will return HTTP 422 for those values even though the DB accepts them.
 
 The imd-scraper schema constrains `lang_pref` to 6 languages, but the frontend added Bengali, Kannada, and Malayalam. Update the constraint in `db/schema.sql`:
 
@@ -77,7 +79,7 @@ CONSTRAINT chk_lang_pref CHECK (
 
 ---
 
-## Phase 3 — Docker Compose Unification
+## Phase 3 — Docker Compose Unification ✅
 
 Merge both `docker-compose.yml` files into one. Target service layout:
 
@@ -163,7 +165,7 @@ services:
 
 ---
 
-## Phase 4 — Backend Integration: Wire Agent into IMD API
+## Phase 4 — Backend Integration: Wire Agent into IMD API ✅
 
 The imd-scraper chat route (`app/routes/chat.py`) is an explicit stub with the comment:
 > *"AgentRunner (WS2) will replace the body of chat_handler"*
@@ -196,7 +198,7 @@ Import `AgentRunner` directly into `app/main.py` and register the agent's router
 
 ---
 
-## Phase 5 — Frontend Integration: Fix WebSocket Protocol Mismatch
+## Phase 5 — Frontend Integration: Fix WebSocket Protocol Mismatch ✅
 
 > ⚠️ **This is the most critical fix.** The frontend uses `socket.io-client` but the agent service
 > exposes a **raw WebSocket** at `/ws/chat`. Socket.io and raw WebSocket are not wire-compatible.
@@ -233,7 +235,7 @@ Required changes to `useChat.js`:
 
 ---
 
-## Phase 6 — Environment & Configuration Alignment
+## Phase 6 — Environment & Configuration Alignment ✅ (partial — duplicate MCP_SERVER_URLS entry in .env.example)
 
 ### 6.1 Create a root `.env.example`
 
@@ -286,7 +288,7 @@ Both services currently use `allow_origins=["*"]`. Tighten to explicit frontend 
 
 ---
 
-## Phase 7 — Shanu/RAG Integration
+## Phase 7 — Shanu/RAG Integration ✅ (partial — §7.4 and §7.5 still open)
 
 ### 7.0 What the branch adds
 
@@ -301,12 +303,12 @@ Both services currently use `allow_origins=["*"]`. Tighten to explicit frontend 
 
 ### 7.1 Conflict analysis
 
-| File | Conflict Type | Resolution |
-|---|---|---|
-| `requirements.txt` | imd-scraper and Shanu/RAG both define one; agentic_solution uses `pyproject.toml` | Merge into a single root `requirements.txt` (see §7.2) |
-| `.gitignore` | Minor line change — Shanu/RAG adds `data/chromadb/`, `data/raw/`, `data/*.json` | Accept Shanu/RAG additions; ensure `data/` artifacts are excluded globally |
-| `ingestion/imd_scraper.py` | Both imd-scraper and Shanu/RAG include an IMD scraper | Shanu/RAG's version feeds ChromaDB; imd-scraper's version feeds PostgreSQL — keep **both** under a shared `ingestion/` package (they don't overlap at the function level) |
-| `mcp_servers/vector_server/` | agentic_solution **deletes** this entire directory | Accept deletion — ChromaDB via `chroma-mcp` is the only vector search path |
+| File | Conflict Type | Resolution | Status |
+|---|---|---|---|
+| `requirements.txt` | imd-scraper and Shanu/RAG both define one; agentic_solution uses `pyproject.toml` | Merge into a single root `requirements.txt` (see §7.2) | ✅ Done (`pyproject.toml` has `chromadb==1.5.9`, `sentence-transformers>=3.0`) |
+| `.gitignore` | Minor line change — Shanu/RAG adds `data/chromadb/`, `data/raw/`, `data/*.json` | Accept Shanu/RAG additions; ensure `data/` artifacts are excluded globally | ✅ Done |
+| `ingestion/imd_scraper.py` | Both imd-scraper and Shanu/RAG include an IMD scraper | Shanu/RAG's version feeds ChromaDB; imd-scraper's version feeds PostgreSQL — keep **both** under a shared `ingestion/` package (they don't overlap at the function level) | ✅ Done (`ingestion/` has both scrapers) |
+| `mcp_servers/vector_server/` | agentic_solution **deletes** this entire directory | Accept deletion — ChromaDB via `chroma-mcp` is the only vector search path | ✅ Done (only `chroma_server/` and `db_server/` remain) |
 
 No conflicts expected in `api/services/` — that directory does not exist in any other branch.
 
@@ -347,7 +349,7 @@ rouge-score>=0.1.2
 > install torch from `https://pytorch.org` with the matching CUDA index URL before
 > `pip install -r requirements.txt`.
 
-### 7.3 Wire RAG into the agent service (updated)
+### 7.3 Wire RAG into the agent service (updated) ✅
 
 **`agentic_solution` already handles this.** The new `chroma-mcp` server (port 9103) exposes
 `query_knowledge_base` as an MCP tool — identical signature to what Shanu/RAG's
@@ -372,7 +374,7 @@ Both are queried, results merged by distance score, deduplicated by `chunk_id`.
 `api/services/rag.py` from `Shanu/RAG` can be kept as a standalone module but is **not
 called at request time** — the agent uses the MCP path instead.
 
-### 7.4 Wire translation into the query/response pipeline
+### 7.4 Wire translation into the query/response pipeline ✅ Done
 
 The translation service operates in two directions:
 
@@ -397,7 +399,7 @@ indic_to_en = TranslationService(model_name=DEFAULT_INDIC_EN)
 en_to_indic  = TranslationService(model_name=DEFAULT_EN_INDIC)
 ```
 
-### 7.5 Language detection: extend `lang_detect.py` to cover all 9 frontend languages
+### 7.5 Language detection: extend `lang_detect.py` to cover all 9 frontend languages ❌ NOT DONE
 
 `lang_detect.py` currently supports 6 languages (`eng`, `hin`, `tam`, `tel`, `mar`, `pan`).
 The frontend added Bengali, Kannada, and Malayalam (Phase 2.2 already fixes the DB constraint).
@@ -428,7 +430,7 @@ _detector = LanguageDetectorBuilder.from_languages(
 Also extend `TranslationService.SUPPORTED` to include `"ben_Beng"`, `"kan_Knda"`, `"mal_Mlym"`.
 IndicTrans2 supports all three out of the box; no model change required.
 
-### 7.6 ChromaDB data bootstrapping
+### 7.6 ChromaDB data bootstrapping ⚠️ PREREQUISITE (must run before `docker compose up`)
 
 The `./data/chromadb` directory (host-mounted into the `chroma` container) must be populated
 before the first `docker compose up`. The store is ~800 MB and pinned to ChromaDB **1.5.9**.
@@ -776,18 +778,19 @@ git merge origin/feature/frontend
 
 ## Summary of Breaking Issues (must fix before merge)
 
-| # | Issue | Severity | Fix Location |
-|---|---|---|---|
-| 1 | **Socket.io vs raw WebSocket** — incompatible protocols | 🔴 Critical | `ui/src/api/socket.js`, `ui/src/hooks/useChat.js` |
-| 2 | **Chat stub never wired** — frontend receives stub response only | 🔴 Critical | `app/routes/chat.py` |
-| 3 | **`lang_pref` constraint** — DB rejects 3 new languages | 🟠 High | `db/schema.sql` |
-| 4 | **Duplicate `docker-compose.yml`** — port 8000 and 5432 collide | 🟠 High | merge into unified compose |
-| 5 | **Frontend streaming not handled** — `useChat.js` expects single event | 🟠 High | `ui/src/hooks/useChat.js` |
-| 6 | **RAG wiring** — `chroma-mcp` must be in `MCP_SERVER_URLS`; `vector-mcp` removed | 🔴 Critical | `docker-compose.yml` `MCP_SERVER_URLS=http://db-mcp:9101,http://chroma-mcp:9103` |
-| 7 | **Translation singleton not instantiated at startup** — constructing per-request loads 2 GB twice | 🟠 High | agent `main.py` startup + §7.4 |
-| 8 | **`lang_detect.py` covers only 6 of 9 languages** — Bengali/Kannada/Malayalam fall back silently to English | 🟡 Medium | `api/services/lang_detect.py` + §7.5 |
-| 9 | **ChromaDB not bootstrapped** — `./data/chromadb` must exist before `docker compose up` | 🔴 Critical | run ingestion pipeline on host first + §7.6 |
-| 10 | **`requirements.txt` conflict** — four branches each define overlapping dependency files | 🟠 High | merge into single root `requirements.txt` + §7.2 |
-| 11 | **Agent port conflict** — `agentic_solution` uses port 8000; unified compose assigns 8000 to `api` | 🔴 Critical | remap agent to port 8001 in unified `docker-compose.yml` + §3 |
-| 12 | **`chromadb==1.5.9` must be pinned** — newer versions cannot read on-disk schema v10 | 🔴 Critical | `requirements.txt` and `pyproject.toml` `[mcp-servers]` + §7.2 |
-| 13 | **Embedding model changed** — store built with `paraphrase-multilingual-MiniLM-L12-v2`; any other model produces mismatched vectors | 🔴 Critical | `CHROMA_EMBED_MODEL` env var in `chroma-mcp` service + §7.3 |
+| # | Issue | Severity | Status | Fix Location |
+|---|---|---|---|---|
+| 1 | **Socket.io vs raw WebSocket** — incompatible protocols | 🔴 Critical | ✅ Fixed | `ui/src/api/socket.js` replaced with lazy native WebSocket + queue |
+| 2 | **Chat stub never wired** — frontend receives stub response only | 🔴 Critical | ✅ Fixed | `app/routes/chat.py` proxies to `AGENT_SERVICE_URL` |
+| 3 | **`lang_pref` constraint in DB** — DB rejects 3 new languages | 🟠 High | ✅ Fixed | `01_schema.sql` has all 9 codes |
+| 3a | **`lang_pref` Pydantic `Literal`** — API returns 422 for `ben_Beng`/`kan_Knda`/`mal_Mlym` | 🟠 High | ❌ Open | `app/schemas/farmer.py` `LangPref` + §2.2 |
+| 4 | **Duplicate `docker-compose.yml`** — port 8000 and 5432 collide | 🟠 High | ✅ Fixed | unified compose with chroma/chroma-mcp/api/agent |
+| 5 | **Frontend streaming not handled** — `useChat.js` expects single event | 🟠 High | ✅ Fixed | `useChat.js` handles token/phase/final/error frames |
+| 6 | **RAG wiring** — `chroma-mcp` must be in `MCP_SERVER_URLS`; `vector-mcp` removed | 🔴 Critical | ✅ Fixed | `MCP_SERVER_URLS=http://db-mcp:9101,http://chroma-mcp:9103` |
+| 7 | **Translation singleton not instantiated at startup** — constructing per-request loads 2 GB twice | 🟠 High | ✅ Fixed | `main.py` startup loads both singletons in thread executor; `builtin.py` uses local service, falls back to HF API |
+| 8 | **`lang_detect.py` covers only 6 of 9 languages** — Bengali/Kannada/Malayalam fall back silently to English | 🟡 Medium | ❌ Open | `api/services/lang_detect.py` + §7.5 |
+| 9 | **ChromaDB not bootstrapped** — `./data/chromadb` must exist before `docker compose up` | 🔴 Critical | ⚠️ Prerequisite | run `python -m ingestion.ingest_to_chromadb` on host first + §7.6 |
+| 10 | **`requirements.txt` conflict** — four branches each define overlapping dependency files | 🟠 High | ✅ Fixed | `pyproject.toml` `[mcp-servers]` pins `chromadb==1.5.9`, `sentence-transformers>=3.0` |
+| 11 | **Agent port conflict** — agent `docker-compose.yml` still exposes `ports: ["8000:8000"]` | 🔴 Critical | ✅ Fixed | removed duplicate `ports: ["8000:8000"]`; added `command: uvicorn ... --port 8001` |
+| 12 | **`chromadb==1.5.9` must be pinned** — newer versions cannot read on-disk schema v10 | 🔴 Critical | ✅ Fixed | `pyproject.toml` `[mcp-servers]` has `chromadb==1.5.9` |
+| 13 | **Embedding model changed** — store built with `paraphrase-multilingual-MiniLM-L12-v2`; any other model produces mismatched vectors | 🔴 Critical | ✅ Fixed | `CHROMA_EMBED_MODEL` set correctly in `chroma-mcp` service |

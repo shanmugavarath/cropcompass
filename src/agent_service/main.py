@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 
@@ -12,9 +13,12 @@ from .agent.runner import AgentRunner
 from .config import get_settings
 from .schemas import AgentResponse, ChatRequest
 from .session import InMemorySessionStore, PostgresSessionStore
+from .tools.builtin import set_translation_services
 from .tools.mcp_client import MCPClient, discover_and_register
 from .transports.sse import make_router as make_sse_router
 from .transports.websocket import make_router as make_ws_router
+
+log = structlog.get_logger(__name__)
 
 
 def _configure_logging(level: str) -> None:
@@ -70,6 +74,30 @@ def create_app(runner: AgentRunner | None = None) -> FastAPI:
         if os.getenv("SESSION_BACKEND") == "postgres":
             store = await _build_session_store()
             runner._sessions = store
+
+        # Load IndicTrans2 translation singletons off the event-loop thread.
+        # Each model is ~2 GB; loading blocks for 30-60 s on first start.
+        # We skip this when SKIP_TRANSLATION=1 (unit tests / lightweight dev mode).
+        if os.getenv("SKIP_TRANSLATION", "0") != "1":
+            try:
+                from api.services.translation import (
+                    TranslationService,
+                    DEFAULT_INDIC_EN,
+                    DEFAULT_EN_INDIC,
+                )
+                log.info("translation.loading", msg="Loading IndicTrans2 models (this may take ~60s)…")
+                loop = asyncio.get_running_loop()
+                en_to_indic, indic_to_en = await asyncio.gather(
+                    loop.run_in_executor(None, lambda: TranslationService(model_name=DEFAULT_EN_INDIC)),
+                    loop.run_in_executor(None, lambda: TranslationService(model_name=DEFAULT_INDIC_EN)),
+                )
+                set_translation_services(en_to_indic=en_to_indic, indic_to_en=indic_to_en)
+                app.state.en_to_indic = en_to_indic
+                app.state.indic_to_en = indic_to_en
+                log.info("translation.ready", msg="IndicTrans2 models loaded.")
+            except Exception as exc:
+                log.warning("translation.load_failed", error=str(exc),
+                            msg="IndicTrans2 not loaded — translation will fall back to HF API.")
 
         # Discover MCP tools
         urls = settings.mcp_urls
