@@ -175,6 +175,19 @@ class TranslationService:
         translated = self._translate(text, "eng_Latn", tgt_lang)
         return {"translated": translated, "lang": tgt_lang}
 
+    def translate_to_english(self, text: str, src_lang: str) -> str:
+        """Translate Indic text (src_lang, FLORES-200) -> English.
+
+        Used to normalise a farmer's query to English before retrieval. Returns
+        the text unchanged when src_lang is English or unsupported.
+
+        NOTE: requires this service to be loaded with the indic->en model
+        (DEFAULT_INDIC_EN). Calling it on an en->indic instance yields garbage.
+        """
+        if src_lang == "eng_Latn" or src_lang not in self.SUPPORTED:
+            return text
+        return self._translate(text, src_lang, "eng_Latn")
+
 
 if __name__ == "__main__":
     import argparse

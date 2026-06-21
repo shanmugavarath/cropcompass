@@ -15,6 +15,15 @@ Dual-collection strategy:
                        untranslated Tamil SAU chunks that icar_knowledge_en lacks.
   Both are queried, results merged by distance, deduplicated by chunk_id.
 
+Language-aware retrieval:
+  If the farmer's query is in an Indic language, it is first translated to
+  English (IndicTrans2 indic->en 1B). Then HYBRID retrieval runs both the
+  English translation AND the original Indic query against both collections,
+  merging by distance. This gives same-language English precision plus
+  cross-lingual recall over the Tamil SAU chunks.
+  The translator is lazy-loaded on the first Indic query; English queries
+  never load it and stay within the <200 ms retrieval budget.
+
 Crop filter behaviour:
   Tries exact crop match first (where={"crop": crop}).
   Falls back to no filter if 0 results — this happens when:
@@ -22,10 +31,15 @@ Crop filter behaviour:
     - The relevant chunks were tagged "general" (multi-crop pages)
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from sentence_transformers import SentenceTransformer
 import chromadb
+
+from .lang_detect import detect_with_codeswitching
+from .translation import DEFAULT_INDIC_EN, TranslationService
 
 _EMBED_MODEL_NAME  = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 _CHROMA_PATH       = Path(__file__).parent.parent.parent / "data" / "chromadb"
@@ -35,6 +49,8 @@ _FALLBACK_COLLECTION = "icar_knowledge"
 _model: SentenceTransformer | None = None
 _col_primary = None
 _col_fallback = None
+
+_query_translator: TranslationService | None = None
 
 
 def _resources():
@@ -51,6 +67,14 @@ def _resources():
             metadata={"hnsw:space": "cosine"},
         )
     return _model, _col_primary, _col_fallback
+
+
+def _get_query_translator() -> TranslationService:
+    """Lazy singleton for the indic->en query translator."""
+    global _query_translator
+    if _query_translator is None:
+        _query_translator = TranslationService(model_name=DEFAULT_INDIC_EN)
+    return _query_translator
 
 
 def _query_collection(collection, embedding, crop, k):
@@ -85,9 +109,43 @@ def _merge_results(results_list, k):
     return candidates[:k]
 
 
+def _query_multi(crop: str, soil: str, queries: list[str], k: int = 5) -> list[dict]:
+    """
+    Hybrid retrieval over multiple phrasings of the SAME question.
+
+    Each string in `queries` is embedded and run against both collections; all
+    result sets are merged by distance and deduplicated by chunk_id, then the
+    top-k are returned.
+    """
+    model, col_primary, col_fallback = _resources()
+
+    results_list = []
+    for q in queries:
+        embedding = model.encode(q).tolist()
+        results_list.append(_query_collection(col_primary, embedding, crop, k))
+        results_list.append(_query_collection(col_fallback, embedding, crop, k))
+
+    merged = _merge_results(results_list, k)
+
+    return [
+        {
+            "text":     doc,
+            "source":   meta["source"],
+            "chunk_id": meta["chunk_id"],
+        }
+        for _, doc, meta in merged
+    ]
+
+
 def query_knowledge_base(crop: str, soil: str, query: str, k: int = 5) -> list[dict]:
     """
     Returns top-k source chunks relevant to the query.
+
+    Handles any language automatically:
+      - English queries go straight to embedding + retrieval.
+      - Indic queries are translated to English first, then HYBRID retrieval
+        runs both the English translation and the original query (merged by
+        distance) for precision + cross-lingual recall.
 
     Each returned dict has:
         text      — the raw chunk text (Tamil or English depending on source)
@@ -100,20 +158,13 @@ def query_knowledge_base(crop: str, soil: str, query: str, k: int = 5) -> list[d
         query — natural-language question from the farmer (any language)
         k     — number of chunks to return
     """
-    model, col_primary, col_fallback = _resources()
+    lang = detect_with_codeswitching(query)
 
-    embedding = model.encode(query).tolist()
+    queries = [query]
+    if lang != "eng_Latn":
+        tr = _get_query_translator()
+        english = tr.translate_to_english(query, lang)
+        if english and english.strip() and english.strip().lower() != query.strip().lower():
+            queries = [english, query]
 
-    r_primary = _query_collection(col_primary, embedding, crop, k)
-    r_fallback = _query_collection(col_fallback, embedding, crop, k)
-
-    merged = _merge_results([r_primary, r_fallback], k)
-
-    return [
-        {
-            "text":     doc,
-            "source":   meta["source"],
-            "chunk_id": meta["chunk_id"],
-        }
-        for _, doc, meta in merged
-    ]
+    return _query_multi(crop, soil, queries, k)
