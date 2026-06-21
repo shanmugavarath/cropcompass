@@ -1,0 +1,11 @@
+# Regression gates for `python -m evals.cli run --fail-under evals/thresholds.yaml`.
+# Each key is an aggregate metric name; the run exits non-zero if the aggregate is
+# below its value. Thresholds for metrics that weren't computed (e.g. judge_* on a
+# --no-judge run) are skipped, not failed. Tune as the agent improves.
+
+recall_at_5: 0.70
+verdict_accuracy: 0.80
+clarification_match: 0.80
+keyword_pass_rate: 1.00
+judge_correctness_mean: 3.5
+judge_faithfulness_mean: 4.0

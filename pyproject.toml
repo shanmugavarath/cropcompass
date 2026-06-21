@@ -24,6 +24,7 @@ mcp-servers = [
 ]
 langchain = ["langchain-core>=0.3"]
 google-adk = ["google-adk>=0.3"]
+evals = ["pyyaml>=6"]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",

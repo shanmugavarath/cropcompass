@@ -689,3 +689,61 @@ pytest -q   # inside .venv
 docker exec agent-vector-mcp python -m mcp_servers.vector_server.loader \
   --text "..." --collection icar
 ```
+
+---
+
+# Evaluation harness
+
+The `evals/` package scores agent output quality against a hand-authored golden
+dataset (`evals/datasets/golden.jsonl`). It drives `AgentRunner` in-process over the
+running MCP servers, so the **stack must be up and seeded** first. See
+`EVAL_HARNESS_SPEC.md` for the design and `evals/datasets/README.md` for the labeling
+guide.
+
+### Prerequisites
+
+```bash
+docker compose up -d
+# Confirm knowledge_chunks is seeded (retrieval metrics are meaningless if empty):
+curl -s localhost:9102/mcp -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_collections","arguments":{}}}'
+```
+
+The harness needs `agent_service` importable plus `pyyaml` (for `--fail-under`):
+
+```bash
+pip install -e ".[evals]"        # or run inside the agent container
+```
+
+### Running
+
+`MCP_SERVER_URLS` must point at the MCP servers (it is unset in `.env`):
+
+```bash
+# Full suite with LLM-as-judge, enforcing regression gates
+MCP_SERVER_URLS=http://localhost:9101,http://localhost:9102 \
+  python -m evals.cli run --judge --fail-under evals/thresholds.yaml
+
+# Fast deterministic-only run (no LLM judge — omit --judge), single category
+MCP_SERVER_URLS=http://localhost:9101,http://localhost:9102 \
+  python -m evals.cli run --tags grounded
+```
+
+Flags: `--dataset`, `--tags <t...>` (run only cases with any tag), `--k` (retrieval@k),
+`--judge` (enable LLM-as-judge), `--repeats` (judge runs averaged), `--out` (results dir),
+`--fail-under <thresholds.yaml>` (exit non-zero on any gate failure — CI gate).
+
+Each run writes `results/<timestamp>/results.json` (full per-case traces) and
+`report.md` (aggregates, verdict confusion matrix, per-case pass/fail). `results/` is
+gitignored.
+
+### Metric unit tests (offline, no stack/LLM)
+
+```bash
+pytest tests/test_evals.py -q
+```
+
+### Adding a case
+
+Append a line to `evals/datasets/golden.jsonl` per `evals/datasets/README.md`.
+Retrieval ground truth (`relevant_chunk_ids`) must use `icar:*` IDs — the agent's
+default query only searches the `icar` collection.
