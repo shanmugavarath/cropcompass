@@ -10,7 +10,7 @@ services:
       POSTGRES_USER:     ${POSTGRES_USER:-cropcompass}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cropcompass_secret}
     ports:
-      - "5432:5432"
+      - "6432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./db/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
@@ -52,7 +52,10 @@ services:
     volumes:
       - ./data/chromadb:/data
     ports:
-      - "8001:8000"
+      # Host 8001 is the agent's (frontend uses ws://localhost:8001). Chroma is
+      # reached internally as chroma:8000 by chroma-mcp, so its host port is only
+      # for debugging — keep it off 8001 to avoid clashing with the agent.
+      - "8002:8000"
     # NOTE: chroma 1.x images are minimal (no python/curl) and loading the ~623MB
     # store takes a while, so we don't gate on a custom healthcheck — the chroma-mcp
     # depends on `service_started` and self-heals via resilient lazy-init.
