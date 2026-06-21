@@ -29,15 +29,22 @@ class AnthropicLLM(LLMClient):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         max_tokens: int = 1024,
+        temperature: float = 0.0,
     ) -> AsyncIterator[LLMStreamEvent]:
-        async for ev in _stream_anthropic(self._client, self._model, system, messages, tools, max_tokens):
+        async for ev in _stream_anthropic(
+            self._client, self._model, system, messages, tools, max_tokens, temperature
+        ):
             yield ev
 
-    async def complete_json(self, *, system: str, user: str, max_tokens: int = 1024) -> str:
+    async def complete_json(
+        self, *, system: str, user: str, max_tokens: int = 1024, temperature: float = 0.0
+    ) -> str:
+        # temperature=0 by default: the verifier/judge must be deterministic, not creative.
         resp = await self._client.messages.create(
             model=self._model,
             system=system,
             max_tokens=max_tokens,
+            temperature=temperature,
             messages=[{"role": "user", "content": user}],
         )
         for block in resp.content:
@@ -53,12 +60,14 @@ async def _stream_anthropic(
     messages: list[dict[str, Any]],
     tools: list[dict[str, Any]],
     max_tokens: int,
+    temperature: float = 0.0,
 ) -> AsyncIterator[LLMStreamEvent]:
     kwargs: dict[str, Any] = {
         "model": model,
         "system": system,
         "messages": messages,
         "max_tokens": max_tokens,
+        "temperature": temperature,
     }
     if tools:
         kwargs["tools"] = tools

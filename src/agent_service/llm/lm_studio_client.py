@@ -51,12 +51,14 @@ class LMStudioLLM(LLMClient):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         max_tokens: int = 1024,
+        temperature: float = 0.0,
     ) -> AsyncIterator[LLMStreamEvent]:
         oai_messages = _to_openai_messages(system, messages)
         payload: dict[str, Any] = {
             "model": self._model,
             "messages": oai_messages,
             "max_tokens": max_tokens,
+            "temperature": temperature,
             "stream": True,
         }
         if tools:
@@ -73,12 +75,16 @@ class LMStudioLLM(LLMClient):
                 async for ev in _parse_openai_stream(resp):
                     yield ev
 
-    async def complete_json(self, *, system: str, user: str, max_tokens: int = 1024) -> str:
+    async def complete_json(
+        self, *, system: str, user: str, max_tokens: int = 1024, temperature: float = 0.0
+    ) -> str:
         """Non-streaming JSON completion.
 
         Tries with response_format=json_object first (forces valid JSON output).
         Falls back to plain completion if the server rejects that parameter,
         so this works across all LM Studio versions and model types.
+
+        temperature=0 by default: the verifier/judge must be deterministic.
         """
         base_payload: dict[str, Any] = {
             "model": self._model,
@@ -87,6 +93,7 @@ class LMStudioLLM(LLMClient):
                 {"role": "user", "content": user},
             ],
             "max_tokens": max_tokens,
+            "temperature": temperature,
             "stream": False,
         }
         async with httpx.AsyncClient(timeout=60.0) as client:

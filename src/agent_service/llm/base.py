@@ -22,6 +22,7 @@ class LLMClient(Protocol):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         max_tokens: int = 1024,
+        temperature: float = 0.0,
     ) -> AsyncIterator[LLMStreamEvent]: ...
 
     async def complete_json(
@@ -30,4 +31,5 @@ class LLMClient(Protocol):
         system: str,
         user: str,
         max_tokens: int = 1024,
+        temperature: float = 0.0,
     ) -> str: ...
