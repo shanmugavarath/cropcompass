@@ -29,15 +29,22 @@ class AnthropicLLM(LLMClient):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         max_tokens: int = 1024,
+        temperature: float = 0.0,
     ) -> AsyncIterator[LLMStreamEvent]:
-        async for ev in _stream_anthropic(self._client, self._model, system, messages, tools, max_tokens):
+        async for ev in _stream_anthropic(
+            self._client, self._model, system, messages, tools, max_tokens, temperature
+        ):
             yield ev
 
-    async def complete_json(self, *, system: str, user: str, max_tokens: int = 1024) -> str:
+    async def complete_json(
+        self, *, system: str, user: str, max_tokens: int = 1024, temperature: float = 0.0
+    ) -> str:
+        # temperature=0 by default: the verifier/judge must be deterministic, not creative.
         resp = await self._client.messages.create(
             model=self._model,
             system=system,
             max_tokens=max_tokens,
+            temperature=temperature,
             messages=[{"role": "user", "content": user}],
         )
         for block in resp.content:
@@ -53,12 +60,14 @@ async def _stream_anthropic(
     messages: list[dict[str, Any]],
     tools: list[dict[str, Any]],
     max_tokens: int,
+    temperature: float = 0.0,
 ) -> AsyncIterator[LLMStreamEvent]:
     kwargs: dict[str, Any] = {
         "model": model,
         "system": system,
         "messages": messages,
         "max_tokens": max_tokens,
+        "temperature": temperature,
     }
     if tools:
         kwargs["tools"] = tools
@@ -98,5 +107,19 @@ async def _stream_anthropic(
                 yield LLMStreamEvent(
                     kind="message_end",
                     stop_reason=final.stop_reason,
-                    content=[b.model_dump() for b in final.content],
+                    content=[_clean_block(b) for b in final.content],
                 )
+
+
+def _clean_block(block: Any) -> dict[str, Any]:
+    """Reduce an SDK content block to only the fields the API accepts back on the
+    next request. model_dump() leaks response-only fields (e.g. text.parsed_output,
+    citations=None) that trigger 'Extra inputs are not permitted' when re-sent in
+    the planner's multi-turn tool loop."""
+    d = block.model_dump()
+    btype = d.get("type")
+    if btype == "text":
+        return {"type": "text", "text": d.get("text", "")}
+    if btype == "tool_use":
+        return {"type": "tool_use", "id": d.get("id"), "name": d.get("name"), "input": d.get("input", {})}
+    return d

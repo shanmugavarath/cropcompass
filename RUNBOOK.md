@@ -884,3 +884,32 @@ pytest -q   # inside .venv
 curl -s -X POST http://localhost:9103/mcp -H 'content-type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"when to irrigate rice","crop":"rice"}}}'
 ```
+
+---
+
+## Evaluation harness (`evals/`)
+
+Scores agent output quality (retrieval, grounding, answer quality, behavior, safety)
+against a hand-authored golden dataset. Drives `AgentRunner` in-process over the
+running MCP servers. See `EVAL_HARNESS_SPEC.md` for design and
+`evals/datasets/README.md` for the labeling guide.
+
+**Offline metric tests** (pure — no stack/LLM):
+```bash
+pip install -e ".[dev,evals]"
+pytest tests/test_evals.py -q
+```
+
+**Live run** (stack must be up; points at db-mcp + chroma-mcp):
+```bash
+MCP_SERVER_URLS=http://localhost:9101,http://localhost:9103 \
+  python -m evals.cli run --judge --fail-under evals/thresholds.yaml
+```
+Flags: `--dataset`, `--tags <t...>`, `--k`, `--judge`, `--repeats`, `--out`,
+`--fail-under <yaml>` (non-zero exit on any gate failure). Each run writes
+`results/<timestamp>/{results.json,report.md}` (gitignored).
+
+> **Note (ChromaDB migration):** the golden dataset's `relevant_chunk_ids` were
+> authored for the old pgvector store and must be re-labeled against the Chroma
+> chunk IDs before retrieval metrics are meaningful — see `evals/datasets/README.md`.
+> Grounding, judge, keyword and behavior metrics work as-is.

@@ -71,3 +71,5 @@ mcp_servers/chroma_server/embed_model/
 # Locally-downloaded IndicTrans2 translation models (~4GB) — baked into the agent
 # image, never committed. Regenerate with scripts/download_translation_models.py
 models/translation/
+# Eval harness run outputs
+results/
