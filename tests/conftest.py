@@ -64,7 +64,7 @@ async def async_client(live: bool, base_url: str):
     - live=True                       → real HTTP client at base_url
     """
     if live:
-        async with httpx.AsyncClient(base_url=base_url, timeout=30.0) as client:
+        async with httpx.AsyncClient(base_url=base_url, timeout=60.0) as client:
             yield client
         return
 

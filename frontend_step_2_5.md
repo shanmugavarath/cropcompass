@@ -458,8 +458,7 @@
   npm install axios@^1.7 socket.io-client@^4.8 react-router-dom@^6.27
 
   5. Install dev dependencies
-  npm install -D vitest@^2.1 @testing-library/react@^16
-  @testing-library/jest-dom@^6 jsdom@^25 msw@^2.6
+  npm install -D vitest@^2.1 @testing-library/react@^16 @testing-library/jest-dom@^6 jsdom@^25 msw@^2.6
 
   6. Confirm installed versions
   npm list --depth=0

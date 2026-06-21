@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.17.0",
+    "axios": "^1.18.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^6.30.4",
@@ -30,7 +30,7 @@
     "jsdom": "^25.0.1",
     "msw": "^2.14.6",
     "vite": "^8.0.12",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.9"
   },
   "msw": {
     "workerDirectory": [
