@@ -49,6 +49,18 @@ const pan_Guru = {
   stageVegetative: { label: 'ਬਨਸਪਤੀ',   desc: 'ਪੱਤਾ ਅਤੇ ਤਣਾ ਵਾਧਾ' },
   stageFlowering:  { label: 'ਫੁੱਲ ਆਉਣਾ',desc: 'ਫੁੱਲ ਅਤੇ ਪਰਾਗਣ' },
   stageMaturity:   { label: 'ਪੱਕਣਾ',    desc: 'ਵਾਢੀ ਲਈ ਤਿਆਰ' },
+
+  greeting: 'ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ CropCompass ਹਾਂ — ਤੁਹਾਡਾ ਫ਼ਸਲ ਸਲਾਹਕਾਰ।\nਆਪਣੀ ਫ਼ਸਲ ਬਾਰੇ ਕੋਈ ਵੀ ਸਵਾਲ ਪੁੱਛੋ।',
+
+  phaseGather:    'ਤੁਹਾਡੀ ਪ੍ਰੋਫ਼ਾਈਲ ਅਤੇ ਮੌਸਮ ਅਨੁਮਾਨ ਵੇਖ ਰਹੇ ਹਾਂ…',
+  phaseGenerate:  'ਤੁਹਾਡੀ ਸਲਾਹ ਤਿਆਰ ਕਰ ਰਹੇ ਹਾਂ…',
+  phaseVerify:    'ਗਿਆਨ ਅਧਾਰ ਨਾਲ ਸਲਾਹ ਦੀ ਪੁਸ਼ਟੀ ਕਰ ਰਹੇ ਹਾਂ…',
+  phaseTranslate: 'ਤੁਹਾਡੀ ਭਾਸ਼ਾ ਵਿੱਚ ਅਨੁਵਾਦ ਕਰ ਰਹੇ ਹਾਂ…',
+
+  toolGetProfile:    'ਤੁਹਾਡੀ ਪ੍ਰੋਫ਼ਾਈਲ ਲੋਡ ਹੋ ਰਹੀ ਹੈ…',
+  toolFetchAdvisory: 'ਮੌਸਮ ਅਨੁਮਾਨ ਜਾਂਚ ਰਹੇ ਹਾਂ…',
+  toolQueryKb:       'ਫ਼ਸਲ ਗਿਆਨ ਅਧਾਰ ਵਿੱਚ ਖੋਜ ਰਹੇ ਹਾਂ…',
+  toolTranslate:     'ਜਵਾਬ ਦਾ ਅਨੁਵਾਦ ਕਰ ਰਹੇ ਹਾਂ…',
 }
 
 export default pan_Guru

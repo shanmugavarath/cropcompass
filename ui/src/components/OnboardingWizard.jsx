@@ -176,6 +176,7 @@ export default function OnboardingWizard() {
         lang_pref:    formData.lang_pref,
       })
       localStorage.setItem('farmer_id', data.farmer_id)
+      localStorage.setItem('lang_pref', formData.lang_pref)
       navigate('/chat')
     } catch (err) {
       const detail = err.response?.data?.detail

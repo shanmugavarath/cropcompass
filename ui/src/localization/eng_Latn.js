@@ -49,6 +49,18 @@ const eng_Latn = {
   stageVegetative: { label: 'Vegetative', desc: 'Leaf & stem growth' },
   stageFlowering:  { label: 'Flowering',  desc: 'Bloom & pollination' },
   stageMaturity:   { label: 'Maturity',   desc: 'Harvest ready' },
+
+  greeting: 'Hello! I am CropCompass — your crop advisory assistant.\nAsk any question about your crop.',
+
+  phaseGather:    'Looking up your profile and forecast…',
+  phaseGenerate:  'Drafting your recommendation…',
+  phaseVerify:    'Verifying advice against knowledge base…',
+  phaseTranslate: 'Translating to your language…',
+
+  toolGetProfile:    'Loading your profile…',
+  toolFetchAdvisory: 'Checking weather forecast…',
+  toolQueryKb:       'Searching crop knowledge base…',
+  toolTranslate:     'Translating response…',
 }
 
 export default eng_Latn

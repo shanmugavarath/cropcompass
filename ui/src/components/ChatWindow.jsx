@@ -4,8 +4,8 @@ import { useChat } from '../hooks/useChat'
 import MessageBubble from './MessageBubble'
 import InputBar from './InputBar'
 
-export default function ChatWindow({ farmerId }) {
-  const { messages, sendMessage, pending, streaming, status } = useChat(farmerId)
+export default function ChatWindow({ farmerId, langPref }) {
+  const { messages, sendMessage, pending, streaming, status } = useChat(farmerId, langPref)
   const bottomRef = useRef(null)
   const navigate = useNavigate()
 
@@ -15,6 +15,7 @@ export default function ChatWindow({ farmerId }) {
 
   function handleNewChat() {
     localStorage.removeItem('farmer_id')
+    localStorage.removeItem('lang_pref')
     navigate('/onboarding')
   }
 

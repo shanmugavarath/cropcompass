@@ -1,29 +1,40 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getSocket, resetSocket } from '../api/socket'
+import STRINGS from '../localization/index'
 
-const WELCOME_MESSAGE = {
-  role: 'assistant',
-  type: 'greeting',
-  text: 'नमस्ते! मैं CropCompass हूँ — आपका कृषि सलाहकार।\nHello! I am CropCompass — your crop advisory assistant.\nअपनी फसल के बारे में कोई भी सवाल पूछें।',
-  lang: 'hin_Deva',
+function buildWelcomeMessage(t, lang) {
+  return {
+    role: 'assistant',
+    type: 'greeting',
+    text: t.greeting,
+    lang,
+  }
 }
 
-const PHASE_LABELS = {
-  gather:    'Looking up your profile and forecast…',
-  generate:  'Drafting your recommendation…',
-  verify:    'Verifying advice against knowledge base…',
-  translate: 'Translating to your language…',
+function buildPhaseLabels(t) {
+  return {
+    gather:    t.phaseGather,
+    generate:  t.phaseGenerate,
+    verify:    t.phaseVerify,
+    translate: t.phaseTranslate,
+  }
 }
 
-const TOOL_LABELS = {
-  get_farmer_profile:    'Loading your profile…',
-  fetch_latest_advisory: 'Checking weather forecast…',
-  query_knowledge_base:  'Searching crop knowledge base…',
-  translate_output:      'Translating response…',
+function buildToolLabels(t) {
+  return {
+    get_farmer_profile:    t.toolGetProfile,
+    fetch_latest_advisory: t.toolFetchAdvisory,
+    query_knowledge_base:  t.toolQueryKb,
+    translate_output:      t.toolTranslate,
+  }
 }
 
-export function useChat(farmerId) {
-  const [messages, setMessages] = useState([WELCOME_MESSAGE])
+export function useChat(farmerId, langPref = 'eng_Latn') {
+  const t = STRINGS[langPref] ?? STRINGS.eng_Latn
+  const PHASE_LABELS = buildPhaseLabels(t)
+  const TOOL_LABELS = buildToolLabels(t)
+
+  const [messages, setMessages] = useState(() => [buildWelcomeMessage(t, langPref)])
   const [pending, setPending] = useState(false)
   const [streaming, setStreaming] = useState(false)
   const [status, setStatus] = useState(null)
@@ -121,7 +132,7 @@ export function useChat(farmerId) {
       socket.off('error',     onError)
       resetSocket()
     }
-  }, [])
+  }, [langPref])
 
   const sendMessage = useCallback(
     text => {

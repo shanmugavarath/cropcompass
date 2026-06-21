@@ -49,6 +49,18 @@ const mar_Deva = {
   stageVegetative: { label: 'वानस्पतिक', desc: 'पान व खोड वाढ' },
   stageFlowering:  { label: 'फुलोरा',    desc: 'फूल व परागण' },
   stageMaturity:   { label: 'परिपक्वता', desc: 'काढणीसाठी तयार' },
+
+  greeting: 'नमस्कार! मी CropCompass आहे — तुमचा कृषी सल्लागार.\nतुमच्या पिकाबद्दल कोणताही प्रश्न विचारा.',
+
+  phaseGather:    'तुमची प्रोफाइल आणि हवामान अंदाज पाहत आहोत…',
+  phaseGenerate:  'तुमची शिफारस तयार करत आहोत…',
+  phaseVerify:    'ज्ञानकोशाशी सल्ल्याची पडताळणी करत आहोत…',
+  phaseTranslate: 'तुमच्या भाषेत भाषांतर करत आहोत…',
+
+  toolGetProfile:    'तुमची प्रोफाइल लोड करत आहोत…',
+  toolFetchAdvisory: 'हवामान अंदाज तपासत आहोत…',
+  toolQueryKb:       'पीक ज्ञानकोशात शोधत आहोत…',
+  toolTranslate:     'उत्तराचे भाषांतर करत आहोत…',
 }
 
 export default mar_Deva

@@ -49,6 +49,18 @@ const tel_Telu = {
   stageVegetative: { label: 'వృక్షజ దశ', desc: 'ఆకు & కాండం పెరుగుదల' },
   stageFlowering:  { label: 'పూత దశ',    desc: 'పూలు & పరాగ సంపర్కం' },
   stageMaturity:   { label: 'పరిపక్వత',  desc: 'పంటకోత సిద్ధంగా' },
+
+  greeting: 'నమస్కారం! నేను CropCompass — మీ పంట సలహాదారు.\nమీ పంట గురించి ఏదైనా ప్రశ్న అడగండి.',
+
+  phaseGather:    'మీ ప్రొఫైల్ మరియు వాతావరణ సూచనను చూస్తున్నాం…',
+  phaseGenerate:  'మీ సిఫార్సును సిద్ధం చేస్తున్నాం…',
+  phaseVerify:    'జ్ఞాన నిధితో సలహాను ధృవీకరిస్తున్నాం…',
+  phaseTranslate: 'మీ భాషలోకి అనువదిస్తున్నాం…',
+
+  toolGetProfile:    'మీ ప్రొఫైల్‌ను లోడ్ చేస్తున్నాం…',
+  toolFetchAdvisory: 'వాతావరణ సూచనను తనిఖీ చేస్తున్నాం…',
+  toolQueryKb:       'పంట జ్ఞాన నిధిలో వెతుకుతున్నాం…',
+  toolTranslate:     'సమాధానాన్ని అనువదిస్తున్నాం…',
 }
 
 export default tel_Telu

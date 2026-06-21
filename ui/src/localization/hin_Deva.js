@@ -49,6 +49,18 @@ const hin_Deva = {
   stageVegetative: { label: 'वानस्पतिक', desc: 'पत्ती और तना वृद्धि' },
   stageFlowering:  { label: 'फूल आना',   desc: 'फूल और परागण' },
   stageMaturity:   { label: 'परिपक्वता', desc: 'कटाई के लिए तैयार' },
+
+  greeting: 'नमस्ते! मैं CropCompass हूँ — आपका कृषि सलाहकार।\nअपनी फसल के बारे में कोई भी सवाल पूछें।',
+
+  phaseGather:    'आपकी प्रोफ़ाइल और पूर्वानुमान देख रहे हैं…',
+  phaseGenerate:  'आपकी सलाह तैयार की जा रही है…',
+  phaseVerify:    'ज्ञान आधार से सलाह की पुष्टि हो रही है…',
+  phaseTranslate: 'आपकी भाषा में अनुवाद हो रहा है…',
+
+  toolGetProfile:    'आपकी प्रोफ़ाइल लोड हो रही है…',
+  toolFetchAdvisory: 'मौसम पूर्वानुमान देखा जा रहा है…',
+  toolQueryKb:       'फसल ज्ञान आधार में खोज हो रही है…',
+  toolTranslate:     'उत्तर का अनुवाद हो रहा है…',
 }
 
 export default hin_Deva

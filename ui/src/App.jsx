@@ -6,8 +6,9 @@ import OnboardingWizard from './components/OnboardingWizard'
 // closure bug where App (above BrowserRouter) never re-renders on navigation.
 function ProtectedChat() {
   const farmerId = localStorage.getItem('farmer_id')
+  const langPref = localStorage.getItem('lang_pref') ?? 'eng_Latn'
   return farmerId
-    ? <ChatWindow farmerId={farmerId} />
+    ? <ChatWindow farmerId={farmerId} langPref={langPref} />
     : <Navigate to="/onboarding" replace />
 }
 

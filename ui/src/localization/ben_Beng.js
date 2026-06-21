@@ -48,6 +48,18 @@ const ben_Beng = {
   stageVegetative: { label: 'উদ্ভিজ্জ',  desc: 'পাতা ও কাণ্ড বৃদ্ধি' },
   stageFlowering:  { label: 'ফুল ধরা',   desc: 'ফুল ও পরাগায়ন' },
   stageMaturity:   { label: 'পরিপক্বতা', desc: 'ফসল তোলার জন্য প্রস্তুত' },
+
+  greeting: 'নমস্কার! আমি CropCompass — আপনার ফসল পরামর্শদাতা।\nআপনার ফসল সম্পর্কে যেকোনো প্রশ্ন জিজ্ঞাসা করুন।',
+
+  phaseGather:    'আপনার প্রোফাইল ও আবহাওয়ার পূর্বাভাস দেখা হচ্ছে…',
+  phaseGenerate:  'আপনার পরামর্শ তৈরি করা হচ্ছে…',
+  phaseVerify:    'জ্ঞানভাণ্ডারের সাথে পরামর্শ যাচাই করা হচ্ছে…',
+  phaseTranslate: 'আপনার ভাষায় অনুবাদ করা হচ্ছে…',
+
+  toolGetProfile:    'আপনার প্রোফাইল লোড হচ্ছে…',
+  toolFetchAdvisory: 'আবহাওয়ার পূর্বাভাস পরীক্ষা করা হচ্ছে…',
+  toolQueryKb:       'ফসল জ্ঞানভাণ্ডারে অনুসন্ধান করা হচ্ছে…',
+  toolTranslate:     'উত্তর অনুবাদ করা হচ্ছে…',
 }
 
 export default ben_Beng

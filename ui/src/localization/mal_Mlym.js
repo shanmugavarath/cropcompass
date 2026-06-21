@@ -48,6 +48,18 @@ const mal_Mlym = {
   stageVegetative: { label: 'സസ്യ ഘട്ടം',   desc: 'ഇല & തണ്ട് വളർച്ച' },
   stageFlowering:  { label: 'പൂക്കൽ ഘട്ടം', desc: 'പൂവ് & പരാഗണം' },
   stageMaturity:   { label: 'പക്വത',         desc: 'കൊയ്ത്തിന് തയ്യാർ' },
+
+  greeting: 'നമസ്കാരം! ഞാൻ CropCompass — നിങ്ങളുടെ വിള ഉപദേശകൻ.\nനിങ്ങളുടെ വിളയെക്കുറിച്ച് ഏത് ചോദ്യവും ചോദിക്കൂ.',
+
+  phaseGather:    'നിങ്ങളുടെ പ്രൊഫൈലും കാലാവസ്ഥാ പ്രവചനവും നോക്കുന്നു…',
+  phaseGenerate:  'നിങ്ങളുടെ ശുപാർശ തയ്യാറാക്കുന്നു…',
+  phaseVerify:    'വിജ്ഞാന ശേഖരവുമായി ഉപദേശം പരിശോധിക്കുന്നു…',
+  phaseTranslate: 'നിങ്ങളുടെ ഭാഷയിലേക്ക് വിവർത്തനം ചെയ്യുന്നു…',
+
+  toolGetProfile:    'നിങ്ങളുടെ പ്രൊഫൈൽ ലോഡ് ചെയ്യുന്നു…',
+  toolFetchAdvisory: 'കാലാവസ്ഥാ പ്രവചനം പരിശോധിക്കുന്നു…',
+  toolQueryKb:       'വിള വിജ്ഞാന ശേഖരത്തിൽ തിരയുന്നു…',
+  toolTranslate:     'മറുപടി വിവർത്തനം ചെയ്യുന്നു…',
 }
 
 export default mal_Mlym
