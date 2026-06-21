@@ -14,6 +14,7 @@ Schema dependency (run once on the DB):
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any
 
@@ -33,10 +34,20 @@ _pool: asyncpg.Pool | None = None
 _embedder = None
 
 
+async def _init_conn(conn: asyncpg.Connection) -> None:
+    # asyncpg returns jsonb as raw text by default; decode it to dict/list so
+    # call sites get real objects (otherwise dict(r["metadata"]) fails).
+    await conn.set_type_codec(
+        "jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
+    )
+
+
 async def _get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5)
+        _pool = await asyncpg.create_pool(
+            DATABASE_URL, min_size=1, max_size=5, init=_init_conn
+        )
     return _pool
 
 
@@ -67,6 +78,9 @@ registry = MCPToolRegistry()
 async def _query_knowledge_base(query: str, top_k: int = 5, collection: str = "icar", crop: str | None = None) -> dict[str, Any]:
     embedder = _get_embedder()
     [vec] = await embedder.embed([query])
+    # asyncpg sends bound params as-is; pgvector's text input is "[1,2,3]", not a
+    # Python list. Match how seed.py inserts (str(embedding)) or $1::vector errors.
+    vec = str(vec)
     pool = await _get_pool()
     async with pool.acquire() as conn:
         if crop:
