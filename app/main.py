@@ -4,7 +4,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import profile, forecast, chat, rainfall
+from app.routes import profile, forecast, chat, rainfall, districts
 from pipeline.scheduler import build_scheduler
 from pipeline.historical_rainfall_loader import run_historical_rainfall_loader
 from pipeline.imd_seasonal_scraper import run_imd_seasonal_scraper
@@ -48,6 +48,7 @@ app.include_router(profile.router)
 app.include_router(forecast.router)
 app.include_router(chat.router)
 app.include_router(rainfall.router)
+app.include_router(districts.router)
 
 
 @app.get("/health", tags=["ops"])
