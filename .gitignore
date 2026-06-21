@@ -63,3 +63,11 @@ test_local/
 
 /cropcompass/*
 /data/*
+
+# Locally-downloaded embedding model (~470MB) — baked into the chroma-mcp image,
+# never committed. Regenerate with mcp_servers/chroma_server/download_model.py
+mcp_servers/chroma_server/embed_model/
+
+# Locally-downloaded IndicTrans2 translation models (~4GB) — baked into the agent
+# image, never committed. Regenerate with scripts/download_translation_models.py
+models/translation/

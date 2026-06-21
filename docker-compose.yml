@@ -64,11 +64,6 @@ services:
     build:
       context: .
       dockerfile: mcp_servers/chroma_server/Dockerfile
-      args:
-        # Pass your corporate CA cert if the build host is behind an SSL-inspecting
-        # proxy (set CORP_CA_CERT in your .env or shell before running docker compose):
-        #   export CORP_CA_CERT="$(cat /path/to/corp-ca.pem)"
-        CORP_CA_CERT: ${CORP_CA_CERT:-}
     container_name: agent-chroma-mcp
     restart: unless-stopped
     command: uvicorn mcp_servers.chroma_server.server:app --host 0.0.0.0 --port 9103
