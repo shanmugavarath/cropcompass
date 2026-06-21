@@ -1,6 +1,6 @@
 # CropCompass — Integration Plan
 
-**Branches:** `feature/frontend` + `feature/imd-scraper` + `agentic_solution` → `main`
+**Branches:** `feature/frontend` + `feature/imd-scraper` + `agentic_solution` + `Shanu/RAG` → `main`
 
 ---
 
@@ -11,6 +11,7 @@
 | `feature/imd-scraper` | Data Engineer | FastAPI backend, IMD weather pipeline, PostgreSQL/ChromaDB, `/api/profile`, `/api/forecast`, `/api/rainfall`, chat **stub** |
 | `agentic_solution` | Agent Engineer | Agent service (LLM + MCP), WebSocket `/ws/chat`, SSE `/sse/chat`, `POST /api/chat`, MCP servers for DB/vector |
 | `feature/frontend` | UI Engineer | React/Vite SPA, farmer onboarding wizard, 9-language support, socket.io-based chat |
+| `Shanu/RAG` | RAG Engineer | Dual-collection ChromaDB RAG (`api/services/rag.py`), IndicTrans2 translation service (`api/services/translation.py`), `lingua-py` language detection (`api/services/lang_detect.py`), PDF ingestion pipeline (`ingestion/`) |
 
 ---
 
@@ -232,7 +233,186 @@ Both services currently use `allow_origins=["*"]`. Tighten to explicit frontend 
 
 ---
 
-## Phase 7 — Merge Execution Order
+## Phase 7 — Shanu/RAG Integration
+
+### 7.0 What the branch adds
+
+`Shanu/RAG` introduces three runtime services and a one-time data pipeline:
+
+| Module | Path | Role at runtime |
+|---|---|---|
+| RAG retriever | `api/services/rag.py` | Called by the agent's MCP tool to fetch crop-advisory chunks from ChromaDB |
+| Translation service | `api/services/translation.py` | Translates farmer queries → English (for retrieval) and agent responses → farmer's language |
+| Language detection | `api/services/lang_detect.py` | Detects script/language of incoming message; handles Hinglish code-switching |
+| Ingestion pipeline | `ingestion/` | **Run once** (or on new data) to build `data/chromadb/`; not in the request path |
+
+### 7.1 Conflict analysis
+
+| File | Conflict Type | Resolution |
+|---|---|---|
+| `requirements.txt` | imd-scraper and Shanu/RAG both define one; agentic_solution has its own | Merge into a single root `requirements.txt` (see §7.2) |
+| `.gitignore` | Minor line change — Shanu/RAG adds `data/chromadb/`, `data/raw/`, `data/*.json` | Accept Shanu/RAG additions; ensure `data/` artifacts are excluded globally |
+| `ingestion/imd_scraper.py` | Both imd-scraper and Shanu/RAG include an IMD scraper | Shanu/RAG's version feeds ChromaDB; imd-scraper's version feeds PostgreSQL — keep **both** under a shared `ingestion/` package (they don't overlap at the function level) |
+
+No conflicts expected in `api/services/` — that directory does not exist in any other branch.
+
+### 7.2 Merge `requirements.txt`
+
+After merging all four branches, produce a single top-level `requirements.txt` that unions all dependencies. Minimum set of additions from `Shanu/RAG`:
+
+```
+# RAG / embeddings
+chromadb>=0.5.0
+sentence-transformers>=2.7.0
+langchain-text-splitters>=0.2.0
+
+# PDF ingestion
+pdfplumber>=0.10.0
+pytesseract>=0.3.10
+pdf2image>=1.17.0
+
+# IndicTrans2 translation
+torch>=2.1.0
+transformers>=4.38,<4.46
+sentencepiece>=0.1.99
+sacremoses>=0.0.53
+IndicTransToolkit>=1.0.0
+
+# Language detection
+lingua-language-detector>=2.0.0
+
+# Evaluation
+rouge-score>=0.1.2
+```
+
+> **GPU note:** `torch` defaults to a CPU wheel. On the agent container (which runs inference),
+> install torch from `https://pytorch.org` with the matching CUDA index URL before
+> `pip install -r requirements.txt`.
+
+### 7.3 Wire RAG into the agent service
+
+`api/services/rag.query_knowledge_base()` has a **frozen signature** that Member 3's MCP tool
+definitions depend on. Do not rename or reorder its parameters.
+
+In `agentic_solution`, the vector MCP server (`mcp_servers/vector_server/`) currently embeds
+its own retrieval logic against pgvector. After merging, the agent can call
+`query_knowledge_base()` directly (Option A) or continue using the vector MCP (Option B):
+
+**Option A — direct Python import (recommended):** Mount `api/services/rag.py` into the agent
+container and call it from `AgentRunner`. Requires the `data/chromadb/` volume to be mounted
+in the agent container.
+
+```python
+# Inside AgentRunner.run() or a new MCP tool handler:
+from api.services.rag import query_knowledge_base
+
+chunks = query_knowledge_base(
+    crop=farmer.crop,
+    soil=farmer.soil_type,
+    query=translated_query,   # English (after translation step below)
+    k=5,
+)
+context = "\n\n".join(c["text"] for c in chunks)
+```
+
+**Option B — keep vector MCP:** Leave the pgvector-based MCP in place for session history /
+structured data, and call `query_knowledge_base()` only for unstructured agronomic knowledge.
+Both can coexist — they use different stores (ChromaDB vs pgvector).
+
+### 7.4 Wire translation into the query/response pipeline
+
+The translation service operates in two directions:
+
+```
+Farmer query (any Indic language)
+    → lang_detect.detect_with_codeswitching()   # e.g. "tam_Taml"
+    → TranslationService(INDIC_EN).translate()  # Tamil → English
+    → RAG retrieval (English query hits both corpora)
+    → AgentRunner produces English recommendation
+    → TranslationService(EN_INDIC).translate(tgt_lang=farmer.lang_pref)
+    → Farmer sees response in their language
+```
+
+`TranslationService` loads ~2 GB of HuggingFace weights on first instantiation. Instantiate
+once at agent startup and pass the singleton through; do **not** construct it per-request.
+
+```python
+# agent/main.py (startup)
+from api.services.translation import TranslationService, DEFAULT_INDIC_EN, DEFAULT_EN_INDIC
+
+indic_to_en = TranslationService(model_name=DEFAULT_INDIC_EN)
+en_to_indic  = TranslationService(model_name=DEFAULT_EN_INDIC)
+```
+
+### 7.5 Language detection: extend `lang_detect.py` to cover all 9 frontend languages
+
+`lang_detect.py` currently supports 6 languages (`eng`, `hin`, `tam`, `tel`, `mar`, `pan`).
+The frontend added Bengali, Kannada, and Malayalam (Phase 2.2 already fixes the DB constraint).
+Extend the detector to match:
+
+```python
+# api/services/lang_detect.py
+from lingua import Language, LanguageDetectorBuilder
+
+LINGUA_TO_FLORES = {
+    Language.HINDI:     "hin_Deva",
+    Language.TAMIL:     "tam_Taml",
+    Language.TELUGU:    "tel_Telu",
+    Language.MARATHI:   "mar_Deva",
+    Language.PUNJABI:   "pan_Guru",
+    Language.ENGLISH:   "eng_Latn",
+    # Add these three:
+    Language.BENGALI:   "ben_Beng",
+    Language.KANNADA:   "kan_Knda",
+    Language.MALAYALAM: "mal_Mlym",
+}
+
+_detector = LanguageDetectorBuilder.from_languages(
+    *LINGUA_TO_FLORES.keys()
+).build()
+```
+
+Also extend `TranslationService.SUPPORTED` to include `"ben_Beng"`, `"kan_Knda"`, `"mal_Mlym"`.
+IndicTrans2 supports all three out of the box; no model change required.
+
+### 7.6 Mount ChromaDB volume in Docker Compose
+
+Add a named volume for the ChromaDB store and mount it into the agent container
+(and optionally an ingestion service for one-time data loading):
+
+```yaml
+# docker-compose.yml additions
+
+services:
+  agent:
+    # ... existing definition ...
+    volumes:
+      - chromadb_data:/app/data/chromadb
+    environment:
+      # existing envs +
+      INDIC_EN_MODEL: ai4bharat/indictrans2-indic-en-1B
+      EN_INDIC_MODEL: ai4bharat/indictrans2-en-indic-1B
+
+  ingest:                          # run once: docker compose run --rm ingest
+    build: { context: ., dockerfile: Dockerfile.agent }
+    command: python -m ingestion.ingest_to_chromadb
+    volumes:
+      - chromadb_data:/app/data/chromadb
+      - ./data/raw:/app/data/raw:ro
+    depends_on: []                 # no DB dependency — ChromaDB is file-based
+
+volumes:
+  chromadb_data:
+```
+
+> **Data bootstrapping:** Before the first `docker compose up`, run the ingestion pipeline on
+> the host (or via `docker compose run --rm ingest`) to populate `data/chromadb/`. The volume
+> is then shared between the `ingest` and `agent` containers. The `data/raw/` SAU OCR JSON
+> files must be present on the host at `data/raw/SAU_ocr_output/`.
+
+---
+
+## Phase 8 — Merge Execution Order
 
 ```bash
 # 1. Create integration branch from main
@@ -241,22 +421,27 @@ git checkout -b integration/unified origin/main
 # 2. Merge the data backend first (establishes directory structure)
 git merge origin/feature/imd-scraper
 
-# 3. Merge the agent service (mostly separate tree under src/, few conflicts)
+# 3. Merge the RAG/translation branch (adds api/services/, ingestion/, extends requirements.txt)
+git merge origin/Shanu/RAG
+#    → manually resolve: requirements.txt (merge dependency lists)
+#    → manually resolve: ingestion/imd_scraper.py (keep both; rename if signatures clash)
+
+# 4. Merge the agent service (mostly separate tree under src/, few conflicts)
 git merge origin/agentic_solution
 #    → manually resolve: docker-compose.yml, Dockerfile
 
-# 4. Merge the frontend (isolated in /ui/, no backend conflicts)
+# 5. Merge the frontend (isolated in /ui/, no backend conflicts)
 git merge origin/feature/frontend
 #    → update ui/.env to point VITE_WS_URL at agent service
 
-# 5. Apply all fixes described in Phases 2–6
-# 6. Run full test suite (see Phase 8)
-# 7. Open PR: integration/unified → main
+# 6. Apply all fixes described in Phases 2–7
+# 7. Run full test suite (see Phase 9)
+# 8. Open PR: integration/unified → main
 ```
 
 ---
 
-## Phase 8 — Validation Checklist
+## Phase 9 — Validation Checklist
 
 - [ ] `docker-compose up` starts all services without port conflicts
 - [ ] `GET http://localhost:8000/health` → `{"status":"ok"}`
@@ -270,6 +455,12 @@ git merge origin/feature/frontend
 - [ ] Frontend language selector displays and persists all 9 languages
 - [ ] Frontend E2E tests pass: `pytest tests/test_e2e.py`
 - [ ] Frontend latency tests pass: `pytest tests/test_latency.py`
+- [ ] RAG retrieval precision ≥ 0.70 on 25-query validation set: `pytest tests/test_rag.py -v`
+- [ ] RAG single-query latency < 200 ms (tunable via `CROPCOMPASS_LATENCY_MS` env)
+- [ ] Language detection returns correct FLORES-200 code for all 9 languages: `pytest tests/test_lang_detect.py`
+- [ ] Translation round-trip (eng → hin → eng) preserves meaning: `pytest tests/test_translation.py`
+- [ ] `query_knowledge_base("rice", "clay", "when to irrigate", k=5)` returns ≥ 1 chunk
+- [ ] Tamil farmer query is translated to English before retrieval and response is returned in Tamil
 
 ---
 
@@ -282,3 +473,8 @@ git merge origin/feature/frontend
 | 3 | **`lang_pref` constraint** — DB rejects 3 new languages | 🟠 High | `db/schema.sql` |
 | 4 | **Duplicate `docker-compose.yml`** — port 8000 and 5432 collide | 🟠 High | merge into unified compose |
 | 5 | **Frontend streaming not handled** — `useChat.js` expects single event | 🟠 High | `ui/src/hooks/useChat.js` |
+| 6 | **RAG not wired into agent** — `query_knowledge_base()` is never called at request time | 🔴 Critical | `agentic_solution` AgentRunner + §7.3 |
+| 7 | **Translation singleton not instantiated at startup** — constructing per-request loads 2 GB twice | 🟠 High | agent `main.py` startup + §7.4 |
+| 8 | **`lang_detect.py` covers only 6 of 9 languages** — Bengali/Kannada/Malayalam fall back silently to English | 🟡 Medium | `api/services/lang_detect.py` + §7.5 |
+| 9 | **ChromaDB volume not mounted** — agent container has no access to `data/chromadb/` | 🔴 Critical | `docker-compose.yml` + §7.6 |
+| 10 | **`requirements.txt` conflict** — four branches each define overlapping dependency files | 🟠 High | merge into single root `requirements.txt` + §7.2 |
