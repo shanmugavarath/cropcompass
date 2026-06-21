@@ -1,7 +1,7 @@
 # agent-service
 
 CropCompass agent in a box. 4-phase planner (Gather → Generate → Verify → Translate),
-two MCP servers (Postgres reads + pgvector knowledge search), token-by-token streaming.
+two MCP servers (Postgres reads + ChromaDB knowledge search), token-by-token streaming.
 No mocks. Dockerized. Deploy in one command.
 
 ---
@@ -16,7 +16,7 @@ POST /api/chat  or  GET /sse/chat
    Phase A ── Gather ──────────────────────────────────────┐
    │   get_farmer_profile       (db-mcp  → Postgres :5432) │
    │   fetch_latest_advisory    (db-mcp  → Postgres :5432) │
-   │   query_knowledge_base     (vector-mcp → pgvector)    │
+   │   query_knowledge_base     (chroma-mcp → chroma :8000) │
         │
    Phase B ── Generate ─────────────────────────────────────┐
    │   LM Studio (Qwen / any model) streaming               │
@@ -36,7 +36,8 @@ POST /api/chat  or  GET /sse/chat
 |--------------|------|--------------|
 | `db`         | 5432 | Postgres 15 + pgvector. `cropcompass_dump.sql` auto-loads on first boot. |
 | `db-mcp`     | 9101 | MCP server — 7 read-only tools against the cropcompass DB. |
-| `vector-mcp` | 9102 | MCP server — semantic search over `knowledge_chunks`. |
+| `chroma`     | 8001 | Standalone ChromaDB **1.5.9** vector store (persists `./data/chromadb`; container port 8000). |
+| `chroma-mcp` | 9103 | MCP server — multilingual semantic search; embedder **baked into the image** (runs offline), queries `chroma` over HTTP. |
 | `agent`      | 8000 | The agent. Auto-discovers all MCP tools on startup. |
 
 ---

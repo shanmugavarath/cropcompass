@@ -34,10 +34,6 @@ env/
 
 *.env.local
 
-# Data (large files — not committed)
-data/chromadb/
-data/raw/
-data/*.json
 CLAUDE.md
 # Model caches
 *.bin
@@ -64,3 +60,6 @@ colab_normalize.ipynb
 
 # Local testing (rigorous validation, not committed)
 test_local/
+
+/cropcompass/*
+/data/*

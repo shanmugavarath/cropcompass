@@ -3,7 +3,7 @@
 > **What is this?**
 > A production-ready agentic backend for CropCompass. 4-phase planner
 > (Gather → Generate → Verify → Translate), two MCP servers (Postgres reads +
-> pgvector semantic search), token-by-token streaming. Dockerized. No mocks.
+> ChromaDB semantic search), token-by-token streaming. Dockerized. No mocks.
 
 ---
 
@@ -19,7 +19,7 @@
 8. [Streaming (SSE & WebSocket)](#8-streaming-sse--websocket)
 9. [Session Management](#9-session-management)
 10. [Switching LLM Backends](#10-switching-llm-backends)
-11. [Loading Knowledge into the Vector MCP](#11-loading-knowledge-into-the-vector-mcp)
+11. [Loading Knowledge into the Chroma MCP](#11-loading-knowledge-into-the-chroma-mcp)
 12. [Adding a Tool](#12-adding-a-tool)
 13. [Adding an MCP Server](#13-adding-an-mcp-server)
 14. [Running Tests](#14-running-tests)
@@ -33,29 +33,30 @@
 ## 1. Architecture at a Glance
 
 ```
-┌─────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────┐
 │                      agent (port 8000)                  │
 │   FastAPI · AgentRunner · 4-phase planner · streaming   │
-└────────────────┬───────────────────┬────────────────────┘
+└────────────────┬──────────────────────────┐
                  │ JSON-RPC 2.0      │ JSON-RPC 2.0
         ┌────────▼────────┐  ┌───────▼───────────┐
-        │  db-mcp (9101)  │  │ vector-mcp (9102) │
+        │  db-mcp (9101)  │  │ chroma-mcp (9103) │
         │  7 read tools   │  │  semantic search  │
-        │  on Postgres    │  │  via pgvector     │
+        │  on Postgres    │  │  + embeds queries │
         └────────┬────────┘  └───────┬───────────┘
-                 └──────────┬────────┘
-                    ┌───────▼──────┐
-                    │  db (5432)   │
-                    │ Postgres 15  │
-                    │ + pgvector   │
-                    └──────────────┘
+                 │ asyncpg            │ HTTP
+        ┌───────▼──────┐      ┌──────▼────────┐
+        │  db (5432)   │      │ chroma (8001)  │
+        │ Postgres 15  │      │ ChromaDB 1.5.9 │
+        │ + pgvector   │      │ ./data/chromadb│
+        └─────────────┘      └──────────────┘
 ```
 
 | Service      | Port | Responsibility |
 |-------------|------|----------------|
 | `db`         | 5432 | Postgres 15 + pgvector. Auto-loads `cropcompass_dump.sql` on first boot. |
 | `db-mcp`     | 9101 | MCP server — 7 read-only tools against the cropcompass DB. |
-| `vector-mcp` | 9102 | MCP server — semantic search. Auto-seeds `knowledge_chunks` on first boot. |
+| `chroma`     | 8001 | Standalone ChromaDB **1.5.9** vector store. Persists `./data/chromadb` (container port 8000). |
+| `chroma-mcp` | 9103 | MCP server — multilingual semantic search; embeds queries, queries `chroma` over HTTP. Built from `mcp_servers/chroma_server/Dockerfile` with the embedder **baked in** (runs offline). |
 | `agent`      | 8000 | The agent. Auto-discovers tools from both MCP servers on startup. |
 
 ---
@@ -88,7 +89,8 @@ ANTHROPIC_API_KEY=sk-ant-api03-xxxxxx
 # See Section 10 for setup instructions.
 LLM_BACKEND=lm_studio
 LM_STUDIO_BASE_URL=http://localhost:1234
-LM_STUDIO_MODEL=lmstudio-community/Llama-3.1-8B-Instruct-GGUF
+# Use the EXACT id from `curl http://localhost:1234/v1/models` (a wrong id => HTTP 400).
+LM_STUDIO_MODEL=qwen/qwen3-coder-30b
 ```
 
 > **Auto-detection:** if `ANTHROPIC_API_KEY` is not set, the agent automatically
@@ -101,7 +103,7 @@ All available env vars:
 | `LLM_BACKEND` | `anthropic` | `anthropic` \| `lm_studio` |
 | `ANTHROPIC_API_KEY` | — | Required for `anthropic` backend |
 | `LM_STUDIO_BASE_URL` | `http://localhost:1234` | LM Studio server URL |
-| `LM_STUDIO_MODEL` | `local-model` | Model identifier (copy from LM Studio UI) |
+| `LM_STUDIO_MODEL` | `qwen/qwen3-coder-30b` | EXACT model id from `GET /v1/models` (wrong id => HTTP 400) |
 | `MCP_SERVER_URLS` | — | Comma-separated MCP base URLs (auto-set in Docker) |
 | `SESSION_BACKEND` | `memory` | `memory` or `postgres` |
 | `DATABASE_URL` | — | Postgres connection string |
@@ -123,12 +125,14 @@ cd agent_service
 `up.sh` will:
 1. Create `.env` from `.env.example` if it doesn't exist
 2. Build all images
-3. Start all 4 services in dependency order: `db` → `db-mcp` → `vector-mcp` → `agent`
+3. Start all services in dependency order: `db` → `db-mcp`, `chroma` → `chroma-mcp` → `agent`
 4. Wait until `GET /health` returns 200
 5. Print all the URLs
 
-**First boot takes 3–5 minutes** — Postgres loads the SQL dump, and the vector MCP
-downloads `sentence-transformers/all-MiniLM-L6-v2` and embeds ~200 chunks.
+**First build takes 5–10 minutes** — the `chroma-mcp` image bakes in
+`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (~470MB) plus torch.
+After that, **startup is fast and fully offline** (the model is in the image;
+`HF_HUB_OFFLINE=1`). First run of `db` also loads the SQL dump (~1–2 min).
 
 ### Or use docker compose directly
 
@@ -154,19 +158,20 @@ cd agent_service
 uv venv && source .venv/bin/activate
 uv pip install -e ".[mcp-servers,dev]"
 
-# Start Postgres from Docker only
-docker compose up db -d
+# Start Postgres + ChromaDB from Docker only
+docker compose up db chroma -d
 
 # Terminal 1 — DB MCP
 DATABASE_URL=postgresql://cropcompass:cropcompass_secret@localhost:5432/cropcompass \
   uvicorn mcp_servers.db_server.server:app --port 9101 --reload
 
-# Terminal 2 — Vector MCP
-DATABASE_URL=postgresql://cropcompass:cropcompass_secret@localhost:5432/cropcompass \
-  uvicorn mcp_servers.vector_server.server:app --port 9102 --reload
+# Terminal 2 — Chroma MCP (talks to the chroma container on localhost:8001)
+CHROMA_HOST=localhost CHROMA_PORT=8001 \
+  uvicorn mcp_servers.chroma_server.server:app --port 9103 --reload
+#   ↑ omit CHROMA_HOST to read ./data/chromadb directly (embedded mode, no container)
 
 # Terminal 3 — Agent
-MCP_SERVER_URLS=http://localhost:9101,http://localhost:9102 \
+MCP_SERVER_URLS=http://localhost:9101,http://localhost:9103 \
 SESSION_BACKEND=postgres \
 DATABASE_URL=postgresql://cropcompass:cropcompass_secret@localhost:5432/cropcompass \
 ANTHROPIC_API_KEY=sk-ant-... \
@@ -195,11 +200,12 @@ curl http://localhost:8000/tools | python3 -m json.tool | grep '"name"'
 docker exec agent-db psql -U cropcompass -d cropcompass \
   -c "SELECT farmer_id, name, district, crop_variety FROM farmers LIMIT 5;"
 
-# 4. Check vector DB has data
-curl -s -X POST http://localhost:9102/mcp \
+# 4. Check the Chroma vector store has data
+curl -s -X POST http://localhost:9103/mcp \
   -H 'content-type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_collections","arguments":{}}}' \
   | python3 -m json.tool
+# → icar_knowledge_en + icar_knowledge with their chunk counts
 ```
 
 ---
@@ -442,53 +448,65 @@ The LM Studio client handles this automatically:
 
 ---
 
-## 11. Loading Knowledge into the Vector MCP
+## 11. Loading Knowledge into the Chroma MCP
 
-The vector MCP auto-seeds on first boot from crop notes + IMD advisories in the dump.
-To load more:
+The knowledge base lives in a standalone **ChromaDB** container (`chroma`), backed by
+the persisted store at `./data/chromadb` (mounted to `/data` in the container). The
+`chroma-mcp` embeds queries with `paraphrase-multilingual-MiniLM-L12-v2` and searches
+two collections:
 
-### Option A — Plain text
+| Collection | Contents |
+|------------|----------|
+| `icar_knowledge_en` | All-English chunks (IMD + translated SAU). Primary for English queries. |
+| `icar_knowledge`    | Original chunks (IMD eng + SAU Tamil). Fallback for untranslated content. |
+
+> The store is ~800MB and **not committed** (gitignored). See
+> `README_CHROMADB_SETUP.md` for how to obtain/extract it into `data/chromadb/`.
+
+### Building / extending the store
+
+The store is produced by the ingestion pipeline in `cropcompass/ingestion/`
+(run outside the agent stack — these are heavy, GPU-friendly batch jobs):
 
 ```bash
-docker exec agent-vector-mcp python -m mcp_servers.vector_server.loader \
-  --text "Soybean JS-335 sowing window is 15 June to 15 July for Vidarbha. Seed rate: 75 kg/ha." \
-  --collection icar \
-  --source "manual-soybean-note"
+cd cropcompass
+pip install -r requirements.txt          # chromadb, sentence-transformers, etc.
+
+# SAU (TNAU Tamil) corpus
+python -m ingestion.ingest_to_chromadb
+
+# IMD advisories
+python -m ingestion.ingest_imd_to_chromadb
 ```
 
-### Option B — PDF or text files
+Both scripts write straight into `data/chromadb/` using
+`chromadb.PersistentClient(path="./data/chromadb")`. After they finish, restart the
+container so it picks up the refreshed store:
 
 ```bash
-# Single file
-docker exec agent-vector-mcp python -m mcp_servers.vector_server.loader \
-  --file /path/to/handbook.pdf --collection icar
-
-# Whole folder (add --replace to overwrite existing chunks)
-docker exec agent-vector-mcp python -m mcp_servers.vector_server.loader \
-  --dir /data/icar_docs --collection icar --replace
-```
-
-Mount a local folder in `docker-compose.yml`:
-
-```yaml
-vector-mcp:
-  volumes:
-    - /your/local/pdfs:/data/icar_docs:ro
+docker restart agent-chroma
 ```
 
 ### Check what's loaded
 
 ```bash
-docker exec agent-db psql -U cropcompass -d cropcompass \
-  -c "SELECT collection, COUNT(*), MIN(created_at) FROM knowledge_chunks GROUP BY collection;"
+# Via the MCP (no python deps needed)
+curl -s -X POST http://localhost:9103/mcp \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_collections","arguments":{}}}' \
+  | python3 -m json.tool
+
+# Or straight off disk with sqlite3
+sqlite3 data/chromadb/chroma.sqlite3 "SELECT name FROM collections;"
 ```
 
-### Force re-seed
+### Smoke-test a query
 
 ```bash
-docker exec agent-db psql -U cropcompass -d cropcompass \
-  -c "TRUNCATE knowledge_chunks;"
-docker restart agent-vector-mcp
+curl -s -X POST http://localhost:9103/mcp \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"when to irrigate rice","crop":"rice","top_k":5}}}' \
+  | python3 -m json.tool
 ```
 
 ---
@@ -566,7 +584,7 @@ my-mcp:
 Extend `MCP_SERVER_URLS` in the `agent` service env:
 
 ```yaml
-MCP_SERVER_URLS: http://db-mcp:9101,http://vector-mcp:9102,http://my-mcp:9200
+MCP_SERVER_URLS: http://db-mcp:9101,http://chroma-mcp:9103,http://my-mcp:9200
 ```
 
 Run `./up.sh` — the agent auto-discovers every tool the new server exposes. Done.
@@ -595,7 +613,7 @@ pytest tests/test_tools.py -v   # specific file
 |--------|-----|
 | **Any VM** | `scp` repo + `.env`, run `./up.sh` |
 
-**Liveness probes:** `GET /health` on all three services (agent, db-mcp, vector-mcp).
+**Liveness probes:** `GET /health` on `agent`, `db-mcp`, and `chroma-mcp`; the `chroma` container exposes `GET /api/v2/heartbeat` (ChromaDB 1.x).
 
 **MCP sanity check:**
 ```bash
@@ -615,8 +633,11 @@ docker compose logs -f
 # Just the agent
 docker compose logs -f agent
 
-# Just the vector MCP (seeding logs here on first boot)
-docker compose logs -f vector-mcp
+# Just the Chroma MCP (model is baked into the image; loads from local cache, offline)
+docker compose logs -f chroma-mcp
+
+# Just the Chroma vector store
+docker compose logs -f chroma
 
 # Just the DB MCP
 docker compose logs -f db-mcp
@@ -630,6 +651,17 @@ Structured JSON logs (structlog). Pipe through `jq` for readability:
 ```bash
 docker compose logs -f agent | jq -r '"\(.timestamp) [\(.level)] \(.event)"'
 ```
+
+### Common issues
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `KeyError('_type')` from chroma / `chroma.warmup.failed` | ChromaDB client/server/data **version mismatch** | Everything must be **1.5.9** (the version the store was embedded with). `chroma` image, `chromadb` in `pyproject.toml`, and the data are all pinned to 1.5.9. Don't loosen the pin. |
+| chroma container panics: `index 10 out of range for slice of length 9` | chroma server **older** than the data's on-disk schema (migration v10) | Use `chromadb/chroma:1.5.9` (not 1.0.x / 0.5.x). |
+| chroma-mcp startup **hangs** at "Waiting for application startup" | Chroma trying to download its default ONNX embedder | Already handled — collections are opened with `embedding_function=None` (we supply our own embeddings). |
+| chroma-mcp logs spam `huggingface.co NameResolutionError` | Container has no HF access and the model isn't baked in | The `chroma-mcp` image now **bakes the model in** + sets `HF_HUB_OFFLINE=1`. Rebuild it: `docker compose build chroma-mcp`. |
+| Agent chat returns `400 Bad Request` from LM Studio | `LM_STUDIO_MODEL` doesn't match a loaded model | Set it to the **exact** id from `curl http://localhost:1234/v1/models`. |
+| Agent `/tools` is missing the chroma tools | Agent discovered tools at startup while chroma-mcp was down | `docker compose restart agent` (tools are discovered on boot). |
 
 ---
 
@@ -645,10 +677,8 @@ docker compose down -v
 # Restart just the agent (e.g. after a code change + rebuild)
 docker compose build agent && docker compose up -d agent
 
-# Re-seed vector knowledge only (no full wipe)
-docker exec agent-db psql -U cropcompass -d cropcompass \
-  -c "TRUNCATE knowledge_chunks;"
-docker restart agent-vector-mcp
+# Refresh vector knowledge (rebuild via cropcompass/ingestion, then)
+docker restart agent-chroma
 ```
 
 ---
@@ -662,7 +692,7 @@ docker compose up --build                    # start (foreground logs)
 docker compose down                          # stop, keep data
 docker compose down -v                       # stop + wipe DB
 docker compose restart agent                 # restart agent only
-docker compose logs -f [agent|vector-mcp]    # tail logs
+docker compose logs -f [agent|chroma-mcp]    # tail logs
 
 # Health & tools
 curl http://localhost:8000/health
@@ -685,7 +715,7 @@ curl -N --get http://localhost:8000/sse/chat \
 curl -X DELETE http://localhost:8000/api/session/s1
 pytest -q   # inside .venv
 
-# Load knowledge
-docker exec agent-vector-mcp python -m mcp_servers.vector_server.loader \
-  --text "..." --collection icar
+# Query knowledge
+curl -s -X POST http://localhost:9103/mcp -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"when to irrigate rice","crop":"rice"}}}'
 ```

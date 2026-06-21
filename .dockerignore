@@ -11,3 +11,5 @@ build/
 .DS_Store
 # DB dump – contains test-data names/phones; mount at runtime via docker-compose
 db/
+# Chroma store (~800MB) – mounted at runtime, never baked into the image
+data/

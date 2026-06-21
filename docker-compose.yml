@@ -37,22 +37,46 @@ services:
       db:
         condition: service_healthy
 
-  # ── Vector MCP server (port 9102) ─────────────────────────────
-  vector-mcp:
-    build:
-      context: .
-      dockerfile: mcp_servers/Dockerfile
-    container_name: cropcompass-vector-mcp
+  # Standalone ChromaDB vector store — same "dedicated DB container" pattern as `db`.
+  # Owns the persisted store; the chroma-mcp talks to it over HTTP. The store is
+  # ~800MB so it's mounted from the host, never baked into an image. Pinned to
+  # 1.5.9 — the version the data was embedded with (on-disk schema migration v10).
+  chroma:
+    image: chromadb/chroma:1.5.9
+    container_name: agent-chroma
     restart: unless-stopped
-    command: uvicorn mcp_servers.vector_server.server:app --host 0.0.0.0 --port 9102
     environment:
-      DATABASE_URL:    postgresql://${POSTGRES_USER:-cropcompass}:${POSTGRES_PASSWORD:-cropcompass_secret}@db:5432/${POSTGRES_DB:-cropcompass}
-      EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /data
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - ./data/chromadb:/data
     ports:
-      - "9102:9102"
+      - "8001:8000"
+    # NOTE: chroma 1.x images are minimal (no python/curl) and loading the ~623MB
+    # store takes a while, so we don't gate on a custom healthcheck — the chroma-mcp
+    # depends on `service_started` and self-heals via resilient lazy-init.
+
+  # ChromaDB-backed knowledge retrieval (the project's only vector search path).
+  # Thin MCP: computes multilingual query embeddings, then queries the chroma
+  # container over HTTP. No DB file access — chroma owns the data.
+  chroma-mcp:
+    build: { context: ., dockerfile: mcp_servers/chroma_server/Dockerfile }
+    container_name: agent-chroma-mcp
+    restart: unless-stopped
+    command: uvicorn mcp_servers.chroma_server.server:app --host 0.0.0.0 --port 9103
+    environment:
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+      CHROMA_EMBED_MODEL: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+      CHROMA_PRIMARY_COLLECTION: icar_knowledge_en
+      CHROMA_FALLBACK_COLLECTION: icar_knowledge
+      # Model is baked into the image; never touch HF at runtime.
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    ports: ["9103:9103"]
     depends_on:
-      db:
-        condition: service_healthy
+      chroma: { condition: service_started }
 
   # ── IMD API service (port 8000) ───────────────────────────────
   api:
@@ -89,28 +113,21 @@ services:
     ports:
       - "8001:8001"
     environment:
-      LLM_BACKEND:        ${LLM_BACKEND:-lm_studio}
-      ANTHROPIC_API_KEY:  ${ANTHROPIC_API_KEY:-}
-      LM_STUDIO_BASE_URL: http://host.docker.internal:1234
-      LM_STUDIO_MODEL:    ${LM_STUDIO_MODEL:-local-model}
-      HF_API_KEY:         ${HF_API_KEY:-}
-      MCP_SERVER_URLS:    http://db-mcp:9101,http://vector-mcp:9102
-      SESSION_BACKEND:    ${SESSION_BACKEND:-postgres}
-      DATABASE_URL:       postgresql://${POSTGRES_USER:-cropcompass}:${POSTGRES_PASSWORD:-cropcompass_secret}@db:5432/${POSTGRES_DB:-cropcompass}
-      ALLOWED_ORIGINS:    ${ALLOWED_ORIGINS:-*}
-      INDIC_EN_MODEL:     ${INDIC_EN_MODEL:-ai4bharat/indictrans2-indic-en-1B}
-      EN_INDIC_MODEL:     ${EN_INDIC_MODEL:-ai4bharat/indictrans2-en-indic-1B}
-
+      LLM_BACKEND:           ${LLM_BACKEND:-lm_studio}
+      ANTHROPIC_API_KEY:     ${ANTHROPIC_API_KEY:-}
+      # LM Studio runs on the host machine — host.docker.internal reaches it from inside the container.
+      # 127.0.0.1 is correct only for local (non-Docker) runs; do NOT change this line.
+      LM_STUDIO_BASE_URL:    http://host.docker.internal:1234
+      LM_STUDIO_MODEL:       ${LM_STUDIO_MODEL:-local-model}
+      HF_API_KEY:            ${HF_API_KEY:-}
+      MCP_SERVER_URLS:       http://db-mcp:9101,http://chroma-mcp:9103
+      SESSION_BACKEND:       ${SESSION_BACKEND:-postgres}
+      DATABASE_URL:          postgresql://cropcompass:cropcompass_secret@db:5432/cropcompass
+      ALLOWED_ORIGINS:       "*"
+    ports: ["8000:8000"]
     depends_on:
-      db-mcp:
-        condition: service_started
-      vector-mcp:
-        condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8001/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
+      db-mcp:     { condition: service_started }
+      chroma-mcp: { condition: service_started }
 
 volumes:
   pg_data:

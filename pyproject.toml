@@ -20,7 +20,10 @@ dependencies = [
 [project.optional-dependencies]
 mcp-servers = [
     "sentence-transformers>=3.0",
-    "pgvector>=0.3",
+    # MUST match the chroma server image AND the version the persisted store was
+    # built with (1.5.9). The on-disk schema is at migration v10, which only 1.5.x
+    # understands; older clients/servers throw KeyError('_type') or panic on migrate.
+    "chromadb==1.5.9",
 ]
 langchain = ["langchain-core>=0.3"]
 google-adk = ["google-adk>=0.3"]
