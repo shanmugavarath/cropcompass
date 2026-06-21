@@ -13,7 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./db/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cropcompass} -d ${POSTGRES_DB:-cropcompass}"]
       interval: 10s
@@ -21,49 +21,112 @@ services:
       retries: 5
       start_period: 30s
 
-  # ── ChromaDB vector store ─────────────────────────────────────
-  vectordb:
-    image: chromadb/chroma:latest
-    container_name: cropcompass-vectordb
+  # ── DB MCP server (port 9101) ─────────────────────────────────
+  db-mcp:
+    build:
+      context: .
+      dockerfile: mcp_servers/Dockerfile
+    container_name: cropcompass-db-mcp
     restart: unless-stopped
-    ports:
-      - "8001:8000"
-    volumes:
-      - chroma_data:/chroma/chroma
+    command: uvicorn mcp_servers.db_server.server:app --host 0.0.0.0 --port 9101
     environment:
-      CHROMA_SERVER_AUTHN_CREDENTIALS: ${CHROMA_TOKEN:-}
-      CHROMA_SERVER_AUTHN_PROVIDER:    ${CHROMA_AUTH_PROVIDER:-}
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/heartbeat || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cropcompass}:${POSTGRES_PASSWORD:-cropcompass_secret}@db:5432/${POSTGRES_DB:-cropcompass}
+    ports:
+      - "9101:9101"
+    depends_on:
+      db:
+        condition: service_healthy
 
-  # ── FastAPI application ───────────────────────────────────────
+  # ── Vector MCP server (port 9102) ─────────────────────────────
+  vector-mcp:
+    build:
+      context: .
+      dockerfile: mcp_servers/Dockerfile
+    container_name: cropcompass-vector-mcp
+    restart: unless-stopped
+    command: uvicorn mcp_servers.vector_server.server:app --host 0.0.0.0 --port 9102
+    environment:
+      DATABASE_URL:    postgresql://${POSTGRES_USER:-cropcompass}:${POSTGRES_PASSWORD:-cropcompass_secret}@db:5432/${POSTGRES_DB:-cropcompass}
+      EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+    ports:
+      - "9102:9102"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── IMD API service (port 8000) ───────────────────────────────
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.api
     container_name: cropcompass-api
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL:       postgresql+asyncpg://${POSTGRES_USER:-cropcompass}:${POSTGRES_PASSWORD:-cropcompass_secret}@db:5432/${POSTGRES_DB:-cropcompass}
-      CHROMA_HOST:        vectordb
-      CHROMA_PORT:        8000
-      ANTHROPIC_API_KEY:  ${ANTHROPIC_API_KEY}
-      HF_API_KEY:         ${HF_API_KEY:-}
-      LOG_LEVEL:          ${LOG_LEVEL:-INFO}
+      DATABASE_URL:      postgresql+asyncpg://${POSTGRES_USER:-cropcompass}:${POSTGRES_PASSWORD:-cropcompass_secret}@db:5432/${POSTGRES_DB:-cropcompass}
+      AGENT_SERVICE_URL: http://agent:8001
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      HF_API_KEY:        ${HF_API_KEY:-}
+      LOG_LEVEL:         ${LOG_LEVEL:-INFO}
     depends_on:
       db:
         condition: service_healthy
-      vectordb:
-        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  # ── Agent service (port 8001) ─────────────────────────────────
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: cropcompass-agent
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      LLM_BACKEND:        ${LLM_BACKEND:-lm_studio}
+      ANTHROPIC_API_KEY:  ${ANTHROPIC_API_KEY:-}
+      LM_STUDIO_BASE_URL: http://host.docker.internal:1234
+      LM_STUDIO_MODEL:    ${LM_STUDIO_MODEL:-local-model}
+      HF_API_KEY:         ${HF_API_KEY:-}
+      MCP_SERVER_URLS:    http://db-mcp:9101,http://vector-mcp:9102
+      SESSION_BACKEND:    ${SESSION_BACKEND:-postgres}
+      DATABASE_URL:       postgresql://${POSTGRES_USER:-cropcompass}:${POSTGRES_PASSWORD:-cropcompass_secret}@db:5432/${POSTGRES_DB:-cropcompass}
+      ALLOWED_ORIGINS:    ${ALLOWED_ORIGINS:-*}
+      INDIC_EN_MODEL:     ${INDIC_EN_MODEL:-ai4bharat/indictrans2-indic-en-1B}
+      EN_INDIC_MODEL:     ${EN_INDIC_MODEL:-ai4bharat/indictrans2-en-indic-1B}
     volumes:
-      - ./:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      - chromadb_data:/app/data/chromadb
+    depends_on:
+      db-mcp:
+        condition: service_started
+      vector-mcp:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8001/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── One-shot ChromaDB ingestion ───────────────────────────────
+  # Usage: docker compose run --rm ingest
+  ingest:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: cropcompass-ingest
+    command: python -m ingestion.ingest_to_chromadb
+    volumes:
+      - chromadb_data:/app/data/chromadb
+      - ./data/raw:/app/data/raw:ro
+    profiles:
+      - tools
 
 volumes:
   pg_data:
-  chroma_data:
+  chromadb_data:
