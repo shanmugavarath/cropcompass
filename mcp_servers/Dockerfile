@@ -11,6 +11,9 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY src ./src
 COPY mcp_servers ./mcp_servers
+# Install CPU-only torch FIRST so sentence-transformers doesn't drag in the
+# multi-GB CUDA build (these containers run CPU-only).
+RUN uv pip install --system torch --index-url https://download.pytorch.org/whl/cpu
 RUN uv pip install --system -e ".[mcp-servers]"
 
 EXPOSE 9101 9102
