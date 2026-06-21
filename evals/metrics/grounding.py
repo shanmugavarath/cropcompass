@@ -8,11 +8,13 @@ NONE = "NONE"
 
 
 def verdict_match(trace: Trace, expected: Expected) -> float | None:
-    """1.0/0.0 vs the labelled verdict; None when the case has no verdict label
-    (e.g. clarify cases) so it's excluded from verdict accuracy."""
-    if expected.verdict is None:
+    """1.0/0.0 vs the acceptable verdict set; None when the case has no verdict
+    label (e.g. clarify/reject cases) so it's excluded from verdict accuracy.
+    `acceptable_verdicts` (if set) widens the match to tolerate verifier variance."""
+    accept = expected.acceptable_verdicts or ([expected.verdict] if expected.verdict else [])
+    if not accept:
         return None
-    return 1.0 if trace.final_verdict == expected.verdict else 0.0
+    return 1.0 if trace.final_verdict in accept else 0.0
 
 
 def update_confusion(
@@ -20,7 +22,7 @@ def update_confusion(
 ) -> None:
     """Increment a {expected: {predicted: count}} matrix. Unlabelled expected and
     no-verdict predictions both bucket under 'NONE'."""
-    e = expected.verdict or NONE
+    e = expected.verdict or (expected.acceptable_verdicts[0] if expected.acceptable_verdicts else NONE)
     p = trace.final_verdict or NONE
     confusion.setdefault(e, {})
     confusion[e][p] = confusion[e].get(p, 0) + 1

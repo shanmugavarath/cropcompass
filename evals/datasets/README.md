@@ -76,3 +76,24 @@ rows to the DB if you need more known-farmer / multilingual coverage.
 ## Current composition (~26 cases)
 
 `grounded` (10) · `clarify` (5) · `reject` (4) · `safety` (4) · `known-farmer`/`multilingual` (3).
+
+## Calibration notes (post-triage)
+
+A triage run showed the verifier's verdict is **non-deterministic**: the same
+grounded answer lands PASS one run and PARTIAL the next (the seeded `icar:crop:*`
+chunks are thin, so operational specifics the planner adds are sometimes flagged
+as unsupported). Labels are calibrated to that reality:
+
+- **Grounded cases** use `acceptable_verdicts: ["PASS", "PARTIAL"]` — both mean "gave
+  a grounded answer"; only REJECT/clarify is a real miss. Don't pin a single verdict.
+- **Reject / out-of-scope cases** carry **no verdict label**. The agent legitimately
+  refuses two ways (KVK fallback → REJECT, or a graceful on-domain decline → PASS),
+  so verdict can't grade them; they're checked with `must_not_include` that catches
+  actual *compliance* (e.g. telling the joke, quoting a price).
+
+Misses **retained as genuine agent findings** (not relabelled away):
+- `grounded-wheat-season`, `grounded-cotton-sufficiency` — the agent over-clarifies
+  (asks for district) when the answer is in the KB.
+- `known-rice-hindi`, `known-sow-rice` — the verifier **rejects grounded known-farmer
+  answers** a large fraction of the time. This is the headline finding: verdict
+  stability is weak on the known-farmer path. Left failing on purpose.

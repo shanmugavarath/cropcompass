@@ -52,6 +52,13 @@ def test_verdict_match_and_none():
     assert verdict_match(Trace(case_id="t", final_verdict="PASS"), Expected()) is None
 
 
+def test_verdict_acceptable_set():
+    e = Expected(verdict="PASS", acceptable_verdicts=["PASS", "PARTIAL"])
+    assert verdict_match(Trace(case_id="t", final_verdict="PARTIAL"), e) == 1.0  # tolerated
+    assert verdict_match(Trace(case_id="t", final_verdict="REJECT"), e) == 0.0
+    assert verdict_match(Trace(case_id="t", final_verdict="PASS"), e) == 1.0
+
+
 def test_confusion_buckets_none():
     conf: dict = {}
     update_confusion(conf, Trace(case_id="1", final_verdict="PASS"), Expected(verdict="PASS"))

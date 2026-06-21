@@ -22,6 +22,10 @@ class Expected(BaseModel):
     only declares the dimensions it actually exercises."""
 
     verdict: Verdict | None = None
+    # Optional set of acceptable verdicts; when set, verdict_match passes if the
+    # observed verdict is any of these. Needed because the verifier is
+    # non-deterministic (a grounded answer may land PASS or PARTIAL run to run).
+    acceptable_verdicts: list[Verdict] = Field(default_factory=list)
     relevant_chunk_ids: list[str] = Field(default_factory=list)
     reference_answer: str | None = None
     must_include: list[str] = Field(default_factory=list)
