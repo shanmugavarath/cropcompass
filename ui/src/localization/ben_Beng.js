@@ -1,0 +1,53 @@
+const ben_Beng = {
+  wizardSubtitle: 'ব্যক্তিগতকৃত ফসল পরামর্শ পেতে আপনার প্রোফাইল সেট আপ করুন',
+  stepLang:     'ভাষা',
+  stepIdentity: 'আপনার তথ্য',
+  stepLocation: 'অবস্থান',
+  stepFarm:     'খামার বিবরণ',
+  optional:     '(ঐচ্ছিক)',
+
+  identityTitle:    'আপনার তথ্য',
+  identitySubtitle: 'এটি আপনার পরামর্শ অভিজ্ঞতা ব্যক্তিগত করতে সাহায্য করে।',
+  nameLabel:        'আপনার নাম',
+  namePlaceholder:  'যেমন: রামেশ্বর',
+  phoneLabel:       'ফোন নম্বর',
+  phonePlaceholder: '১০ সংখ্যার মোবাইল নম্বর',
+  nextIdentityBtn:  'পরবর্তী: আপনার অবস্থান →',
+
+  locationTitle:        'আপনার অবস্থান',
+  locationSubtitle:     'স্থানীয় আবহাওয়া ও মাটির তথ্যের জন্য আমরা আপনার জেলা ব্যবহার করি।',
+  stateLabel:           'রাজ্য',
+  statePlaceholder:     '— রাজ্য নির্বাচন করুন —',
+  districtLabel:        'জেলা',
+  districtPlaceholder:  '— জেলা নির্বাচন করুন —',
+  errorState:           'অনুগ্রহ করে আপনার রাজ্য নির্বাচন করুন।',
+  errorDistrict:        'অনুগ্রহ করে আপনার জেলা নির্বাচন করুন।',
+  errorDistrictNetwork: 'এই জেলা নেটওয়ার্কে নেই। অন্যটি নির্বাচন করুন।',
+  backBtn:              '← পিছনে',
+  nextLocationBtn:      'পরবর্তী: খামার বিবরণ →',
+
+  farmTitle:       'আপনার খামার',
+  farmSubtitle:    'এটি আমাদের মাটি ও সার পরামর্শ দিতে সাহায্য করে।',
+  soilLabel:       'মাটির ধরন',
+  cropLabel:       'ফসলের জাত',
+  cropPlaceholder: 'যেমন: সয়াবিন JS-335',
+  stageLabel:      'বৃদ্ধির পর্যায়',
+  errorSoil:       'অনুগ্রহ করে মাটির ধরন নির্বাচন করুন।',
+  errorCrop:       'অনুগ্রহ করে ফসলের জাত লিখুন (ন্যূনতম ২ অক্ষর)।',
+  errorStage:      'অনুগ্রহ করে বৃদ্ধির পর্যায় নির্বাচন করুন।',
+  submitBtn:       'পরামর্শ শুরু করুন →',
+  submittingBtn:   'প্রস্তুত হচ্ছে…',
+
+  soilClay:     { label: 'এঁটেল মাটি',  desc: 'ভারী, জলধারক' },
+  soilLoam:     { label: 'দোআঁশ মাটি',  desc: 'সুষম, উর্বর' },
+  soilSandy:    { label: 'বালু মাটি',   desc: 'হালকা, দ্রুত নিষ্কাশন' },
+  soilClayLoam: { label: 'কাদা দোআঁশ', desc: 'মাঝারি ভারী' },
+  soilSiltLoam: { label: 'পলি দোআঁশ',  desc: 'আর্দ্রতা ধারক' },
+
+  stageSowing:     { label: 'বপন',        desc: 'বীজ রোপণ' },
+  stageVegetative: { label: 'উদ্ভিজ্জ',  desc: 'পাতা ও কাণ্ড বৃদ্ধি' },
+  stageFlowering:  { label: 'ফুল ধরা',   desc: 'ফুল ও পরাগায়ন' },
+  stageMaturity:   { label: 'পরিপক্বতা', desc: 'ফসল তোলার জন্য প্রস্তুত' },
+}
+
+export default ben_Beng
