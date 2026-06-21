@@ -443,24 +443,250 @@ git merge origin/feature/frontend
 
 ## Phase 9 — Validation Checklist
 
-- [ ] `docker-compose up` starts all services without port conflicts
-- [ ] `GET http://localhost:8000/health` → `{"status":"ok"}`
-- [ ] `GET http://localhost:8001/health` → `{"status":"ok"}`
-- [ ] Farmer onboarding `POST /api/profile` saves record to DB and returns `farmer_id`
-- [ ] `GET /api/profile/{farmer_id}` returns farmer data
-- [ ] `GET /api/forecast/{district}` returns IMD advisory
-- [ ] WebSocket `/ws/chat` streams `StreamEvent` tokens to the frontend chat window
-- [ ] `POST /api/chat` (HTTP fallback) returns `AgentResponse`
-- [ ] All 9 language preferences accepted by the DB (`lang_pref` constraint)
+### 9.1 Service startup
+
+- [ ] All services start without port conflicts
+  ```bash
+  docker compose up -d
+  docker compose ps   # all containers must show "healthy" or "running"
+  ```
+
+### 9.2 Health checks
+
+- [ ] IMD API healthy
+  ```bash
+  curl -sf http://localhost:8000/health
+  # Expected: {"status":"ok"}
+  ```
+- [ ] Agent service healthy
+  ```bash
+  curl -sf http://localhost:8001/health
+  # Expected: {"status":"ok"}
+  ```
+- [ ] Agent tool discovery
+  ```bash
+  curl -sf http://localhost:8001/tools
+  # Expected: {"tools": [...]} — list must include db_query, vector_search, translate_output
+  ```
+
+### 9.3 Farmer profile (`/api/profile`)
+
+- [ ] Create farmer profile — returns `farmer_id`
+  ```bash
+  curl -s -X POST http://localhost:8000/api/profile \
+    -H "Content-Type: application/json" \
+    -d '{
+      "district": "Chennai",
+      "state": "Tamil Nadu",
+      "name": "Test Farmer",
+      "soil_type": "clay",
+      "crop_variety": "rice",
+      "growth_stage": "sowing",
+      "lang_pref": "tam_Taml"
+    }' | tee /tmp/farmer.json
+  # Expected: JSON with farmer_id (UUID), created_at, is_stale=false
+  FARMER_ID=$(cat /tmp/farmer.json | python3 -c "import sys,json; print(json.load(sys.stdin)['farmer_id'])")
+  ```
+- [ ] Retrieve farmer profile by ID
+  ```bash
+  curl -sf http://localhost:8000/api/profile/$FARMER_ID
+  # Expected: same farmer record; district="Chennai", lang_pref="tam_Taml"
+  ```
+- [ ] Update farmer profile
+  ```bash
+  curl -s -X PATCH http://localhost:8000/api/profile/$FARMER_ID \
+    -H "Content-Type: application/json" \
+    -d '{"growth_stage": "vegetative"}'
+  # Expected: updated record with growth_stage="vegetative"
+  ```
+- [ ] 404 on unknown farmer
+  ```bash
+  curl -sw "\nHTTP %{http_code}\n" http://localhost:8000/api/profile/00000000-0000-0000-0000-000000000000
+  # Expected: HTTP 404
+  ```
+
+### 9.4 All 9 `lang_pref` values accepted by DB
+
+- [ ] Each language code must be accepted without a constraint error
+  ```bash
+  for lang in hin_Deva tam_Taml tel_Telu mar_Deva pan_Guru eng_Latn ben_Beng kan_Knda mal_Mlym; do
+    code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8000/api/profile \
+      -H "Content-Type: application/json" \
+      -d "{\"district\":\"TestDist\",\"state\":\"TestState\",\"lang_pref\":\"$lang\"}")
+    echo "$lang → HTTP $code"
+  done
+  # Expected: all lines show HTTP 201
+  ```
+
+### 9.5 IMD forecast (`/api/forecast`)
+
+- [ ] Fetch forecast for a known district
+  ```bash
+  curl -sf "http://localhost:8000/api/forecast/Chennai"
+  # Expected: JSON with district, bulletin_date, rainfall_prob, advisory_text, is_stale
+  ```
+- [ ] 404 for unknown district
+  ```bash
+  curl -sw "\nHTTP %{http_code}\n" "http://localhost:8000/api/forecast/NoSuchDistrict999"
+  # Expected: HTTP 404
+  ```
+
+### 9.6 Rainfall crop suitability (`/api/rainfall`)
+
+- [ ] Crop suitability for a district + crop
+  ```bash
+  curl -sf "http://localhost:8000/api/rainfall/Chennai/crop-suitability/rice"
+  # Expected: JSON with verdict (SUFFICIENT/MARGINAL/INSUFFICIENT), recommendation, confidence
+  ```
+- [ ] 404 for unsupported crop
+  ```bash
+  curl -sw "\nHTTP %{http_code}\n" "http://localhost:8000/api/rainfall/Chennai/crop-suitability/unknowncrop"
+  # Expected: HTTP 404, detail lists supported crops
+  ```
+
+### 9.7 Chat — HTTP fallback (`POST /api/chat`)
+
+- [ ] Chat via IMD API proxy (requires agent service running)
+  ```bash
+  curl -s -X POST http://localhost:8000/api/chat \
+    -H "Content-Type: application/json" \
+    -d "{\"farmer_id\": \"$FARMER_ID\", \"message\": \"When should I irrigate my rice crop?\"}" \
+    | python3 -m json.tool
+  # Expected: {"session_id": "...", "response": "...", "lang": "eng_Latn", "verdict": "PASS"|"PARTIAL"|"REJECT", "citations": [...]}
+  ```
+- [ ] Chat directly against agent service
+  ```bash
+  curl -s -X POST http://localhost:8001/api/chat \
+    -H "Content-Type: application/json" \
+    -d "{\"farmer_id\": \"$FARMER_ID\", \"message\": \"What is the best fertilizer for clay soil?\"}" \
+    | python3 -m json.tool
+  # Expected: {"text": "...", "lang": "eng_Latn", "verdict": "PASS"|"PARTIAL"|"REJECT", "citations": {}, "session_id": "..."}
+  ```
+
+### 9.8 WebSocket streaming (`/ws/chat`)
+
+- [ ] WebSocket streams `StreamEvent` frames
+
+  **Option A — Python (works everywhere, no extra install):**
+  ```bash
+  pip install websockets   # once
+  python3 - <<'EOF'
+  import asyncio, json
+  import websockets
+
+  async def test():
+      uri = "ws://localhost:8001/ws/chat"
+      async with websockets.connect(uri) as ws:
+          payload = {"farmer_id": None, "message": "How much water does rice need?", "session_id": None}
+          await ws.send(json.dumps(payload))
+          while True:
+              frame = json.loads(await ws.recv())
+              print(frame["type"], "→", str(frame.get("data", ""))[:120])
+              if frame["type"] in ("final", "error"):
+                  break
+
+  asyncio.run(test())
+  EOF
+  # Expected: sequence of frames with type in [phase, tool_call, tool_result, token, verdict, final]
+  # Last frame must have type="final"
+  ```
+
+  **Option B — wscat from PowerShell (Windows Node, not WSL):**
+  ```powershell
+  # Run in PowerShell (not WSL) — Node/wscat must be installed on Windows
+  npx wscat -c "ws://localhost:8001/ws/chat"
+  # After the connection prompt, paste:
+  # {"farmer_id": null, "message": "How much water does rice need?", "session_id": null}
+  ```
+
+  **Option C — websocat single binary (no Node, no Python):**
+  ```bash
+  # Linux/WSL: download from https://github.com/vi/websocat/releases
+  curl -Lo websocat https://github.com/vi/websocat/releases/latest/download/websocat.x86_64-unknown-linux-musl
+  chmod +x websocat
+  echo '{"farmer_id":null,"message":"How much water does rice need?","session_id":null}' \
+    | ./websocat ws://localhost:8001/ws/chat
+  ```
+
+### 9.9 SSE streaming (`/sse/chat`)
+
+- [ ] SSE streams events
+  ```bash
+  curl -sN -X POST http://localhost:8001/sse/chat \
+    -H "Content-Type: application/json" \
+    -d "{\"farmer_id\": \"$FARMER_ID\", \"message\": \"Explain kharif season planting.\", \"session_id\": null}"
+  # Expected: stream of data: {...} lines, ending with type="final"
+  ```
+
+### 9.10 Frontend
+
 - [ ] Frontend language selector displays and persists all 9 languages
-- [ ] Frontend E2E tests pass: `pytest tests/test_e2e.py`
-- [ ] Frontend latency tests pass: `pytest tests/test_latency.py`
-- [ ] RAG retrieval precision ≥ 0.70 on 25-query validation set: `pytest tests/test_rag.py -v`
-- [ ] RAG single-query latency < 200 ms (tunable via `CROPCOMPASS_LATENCY_MS` env)
-- [ ] Language detection returns correct FLORES-200 code for all 9 languages: `pytest tests/test_lang_detect.py`
-- [ ] Translation round-trip (eng → hin → eng) preserves meaning: `pytest tests/test_translation.py`
-- [ ] `query_knowledge_base("rice", "clay", "when to irrigate", k=5)` returns ≥ 1 chunk
-- [ ] Tamil farmer query is translated to English before retrieval and response is returned in Tamil
+  ```bash
+  cd ui && npm run dev
+  # Open http://localhost:5173 — verify all 9 languages appear in the selector
+  # Select Tamil, reload page — preference must persist
+  ```
+
+### 9.11 Automated test suite
+
+- [ ] E2E tests
+  ```bash
+  pytest tests/test_e2e.py -v
+  ```
+- [ ] Latency tests (P95 chat round-trip < threshold)
+  ```bash
+  pytest tests/test_latency.py -v
+  ```
+- [ ] Budget / token limit tests
+  ```bash
+  pytest tests/test_budget.py -v
+  ```
+- [ ] Session persistence tests
+  ```bash
+  pytest tests/test_session.py -v
+  ```
+- [ ] MCP tool discovery tests
+  ```bash
+  pytest tests/test_mcp.py -v
+  ```
+
+### 9.12 RAG pipeline
+
+- [ ] RAG retrieval precision ≥ 0.70 on 25-query validation set
+  ```bash
+  pytest tests/test_rag.py -v
+  ```
+- [ ] RAG single-query latency < 200 ms
+  ```bash
+  CROPCOMPASS_LATENCY_MS=200 pytest tests/test_latency.py -v -k rag
+  ```
+- [ ] `query_knowledge_base` returns ≥ 1 chunk
+  ```python
+  # python3 -c
+  from api.services.rag import query_knowledge_base
+  chunks = query_knowledge_base("rice", "clay", "when to irrigate", k=5)
+  assert len(chunks) >= 1, f"Expected chunks, got {chunks}"
+  print(f"OK — {len(chunks)} chunks returned")
+  ```
+
+### 9.13 Language detection & translation
+
+- [ ] Language detection returns correct FLORES-200 code for all 9 languages
+  ```bash
+  pytest tests/test_lang_detect.py -v
+  ```
+- [ ] Translation round-trip (eng → hin → eng) preserves meaning
+  ```bash
+  pytest tests/test_translation.py -v
+  ```
+- [ ] Tamil query routed through translation pipeline end-to-end
+  ```bash
+  curl -s -X POST http://localhost:8001/api/chat \
+    -H "Content-Type: application/json" \
+    -d "{\"farmer_id\": \"$FARMER_ID\", \"message\": \"நெல் பயிருக்கு எவ்வளவு தண்ணீர் தேவை?\", \"session_id\": null}" \
+    | python3 -c "import sys,json; r=json.load(sys.stdin); print('lang:', r['lang']); print(r['text'][:200])"
+  # Expected: lang starts with "tam_" and response text is in Tamil script
+  ```
 
 ---
 

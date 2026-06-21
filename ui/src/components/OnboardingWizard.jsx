@@ -178,7 +178,10 @@ export default function OnboardingWizard() {
       localStorage.setItem('farmer_id', data.farmer_id)
       navigate('/chat')
     } catch (err) {
-      const msg = err.response?.data?.detail ?? 'Something went wrong. Please try again.'
+      const detail = err.response?.data?.detail
+      const msg = Array.isArray(detail)
+        ? detail.map(e => e.msg ?? String(e)).join(' · ')
+        : (typeof detail === 'string' ? detail : 'Something went wrong. Please try again.')
       setServerError(msg)
     } finally {
       setSubmitting(false)

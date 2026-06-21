@@ -10,27 +10,38 @@ let _socket = null
 // Each frame is also echoed as 'response' so the current useChat.js keeps
 // working until step 5.2 lands.
 function createAdapter() {
-  const ws = new WebSocket(`${WS_URL}/ws/chat`)
   const listeners = {}
+  const queue = []
+  let ws = null   // created lazily on first emit — avoids StrictMode open→close churn
 
   function dispatch(event, payload) {
     ;(listeners[event] ?? []).forEach(h => h(payload))
   }
 
-  ws.onmessage = (evt) => {
-    let data
-    try { data = JSON.parse(evt.data) } catch { return }
-    const type = data.type ?? 'response'
-    dispatch(type, data)
-    if (type !== 'response') dispatch('response', data)
-  }
+  function connect() {
+    if (ws && ws.readyState !== WebSocket.CLOSED) return
+    ws = new WebSocket(`${WS_URL}/ws/chat`)
 
-  ws.onerror = () => {
-    dispatch('error', { type: 'error', message: 'WebSocket error' })
-  }
+    ws.onopen = () => {
+      while (queue.length) ws.send(queue.shift())
+      dispatch('connect', {})
+    }
 
-  ws.onclose = () => {
-    dispatch('disconnect', {})
+    ws.onmessage = (evt) => {
+      let data
+      try { data = JSON.parse(evt.data) } catch { return }
+      const type = data.type ?? 'response'
+      dispatch(type, data)
+      if (type !== 'response') dispatch('response', data)
+    }
+
+    ws.onerror = () => {
+      dispatch('error', { type: 'error', message: 'WebSocket error' })
+    }
+
+    ws.onclose = () => {
+      dispatch('disconnect', {})
+    }
   }
 
   return {
@@ -43,15 +54,22 @@ function createAdapter() {
       }
     },
     emit(event, payload) {
-      if (event === 'chat' && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(payload))
+      if (event !== 'chat') return
+      connect()   // open socket on demand
+      const frame = JSON.stringify(payload)
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(frame)
+      } else if (ws.readyState === WebSocket.CONNECTING) {
+        queue.push(frame)   // flushed in onopen
       }
+      // CLOSING / CLOSED: drop (caller should resetSocket first)
     },
     disconnect() {
-      ws.close()
+      if (ws && ws.readyState !== WebSocket.CLOSED) ws.close()
+      ws = null
     },
     get connected() {
-      return ws.readyState === WebSocket.OPEN
+      return ws?.readyState === WebSocket.OPEN
     },
   }
 }

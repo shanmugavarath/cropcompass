@@ -14,8 +14,8 @@ RUN uv pip install --system -e .
 
 # Copy rest of source (prompts, RAG services, ingestion pipeline)
 COPY prompts ./prompts
-COPY api ./api
-COPY ingestion ./ingestion
+# COPY api ./api
+# COPY ingestion ./ingestion
 
 EXPOSE 8001
 CMD ["uvicorn", "agent_service.main:app", "--host", "0.0.0.0", "--port", "8001"]

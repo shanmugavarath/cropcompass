@@ -100,8 +100,7 @@ services:
       ALLOWED_ORIGINS:    ${ALLOWED_ORIGINS:-*}
       INDIC_EN_MODEL:     ${INDIC_EN_MODEL:-ai4bharat/indictrans2-indic-en-1B}
       EN_INDIC_MODEL:     ${EN_INDIC_MODEL:-ai4bharat/indictrans2-en-indic-1B}
-    volumes:
-      - chromadb_data:/app/data/chromadb
+
     depends_on:
       db-mcp:
         condition: service_started
@@ -113,20 +112,5 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── One-shot ChromaDB ingestion ───────────────────────────────
-  # Usage: docker compose run --rm ingest
-  ingest:
-    build:
-      context: .
-      dockerfile: Dockerfile.agent
-    container_name: cropcompass-ingest
-    command: python -m ingestion.ingest_to_chromadb
-    volumes:
-      - chromadb_data:/app/data/chromadb
-      - ./data/raw:/app/data/raw:ro
-    profiles:
-      - tools
-
 volumes:
   pg_data:
-  chromadb_data:

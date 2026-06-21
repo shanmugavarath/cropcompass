@@ -40,4 +40,11 @@ async def chat_handler(body: ChatRequest):
         )
     if r.status_code != 200:
         raise HTTPException(status_code=r.status_code, detail=r.text)
-    return ChatResponse(**r.json())
+    data = r.json()
+    return ChatResponse(
+        session_id=data["session_id"],
+        response=data["text"],
+        lang=data.get("lang", "eng_Latn"),
+        verdict=data.get("verdict"),
+        citations=list(data.get("citations", {}).keys()),
+    )
