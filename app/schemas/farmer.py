@@ -6,9 +6,9 @@ from pydantic import BaseModel, Field
 SoilType    = Literal["loamy", "clay", "sandy", "black", "red", "alluvial", "laterite"]
 CropVariety = Literal["rice", "wheat", "maize", "cotton", "soybean", "sugarcane", "pulses", "vegetables"]
 GrowthStage = Literal["sowing", "germination", "vegetative", "flowering", "fruiting", "harvesting"]
-LangPref    = Literal["hin_Deva", "tam_Taml", "tel_Telu", "mar_Deva", "pan_Guru", "eng_Latn"]
+LangPref    = Literal["hin_Deva", "tam_Taml", "tel_Telu", "mar_Deva", "pan_Guru", "eng_Latn", "ben_Beng", "kan_Knda", "mal_Mlym"]
 
-SUPPORTED_LANGS: list[str] = ["hin_Deva", "tam_Taml", "tel_Telu", "mar_Deva", "pan_Guru", "eng_Latn"]
+SUPPORTED_LANGS: list[str] = ["hin_Deva", "tam_Taml", "tel_Telu", "mar_Deva", "pan_Guru", "eng_Latn", "ben_Beng", "kan_Knda", "mal_Mlym"]
 
 
 class FarmerCreate(BaseModel):

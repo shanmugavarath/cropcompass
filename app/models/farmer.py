@@ -23,7 +23,7 @@ class Farmer(Base):
     is_stale:     Mapped[bool]         = mapped_column(Boolean, default=False, nullable=False)
 
     __table_args__ = (
-        CheckConstraint("lang_pref IN ('hin_Deva','tam_Taml','tel_Telu','mar_Deva','pan_Guru','eng_Latn')", name="chk_lang_pref"),
+        CheckConstraint("lang_pref IN ('hin_Deva','tam_Taml','tel_Telu','mar_Deva','pan_Guru','eng_Latn','ben_Beng','kan_Knda','mal_Mlym')", name="chk_lang_pref"),
         CheckConstraint("soil_type IS NULL OR soil_type IN ('loamy','clay','sandy','black','red','alluvial','laterite')", name="chk_soil_type"),
         CheckConstraint("crop_variety IS NULL OR crop_variety IN ('rice','wheat','maize','cotton','soybean','sugarcane','pulses','vegetables')", name="chk_crop_variety"),
         CheckConstraint("growth_stage IS NULL OR growth_stage IN ('sowing','germination','vegetative','flowering','fruiting','harvesting')", name="chk_growth_stage"),

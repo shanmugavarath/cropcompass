@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS farmers (
 
     -- Constraints
     CONSTRAINT chk_lang_pref CHECK (
-        lang_pref IN ('hin_Deva', 'tam_Taml', 'tel_Telu', 'mar_Deva', 'pan_Guru', 'eng_Latn')
+        lang_pref IN ('hin_Deva', 'tam_Taml', 'tel_Telu', 'mar_Deva', 'pan_Guru', 'eng_Latn', 'ben_Beng', 'kan_Knda', 'mal_Mlym')
     ),
     CONSTRAINT chk_soil_type CHECK (
         soil_type IS NULL OR soil_type IN (
