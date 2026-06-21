@@ -38,7 +38,8 @@ POST /api/chat  or  GET /sse/chat
 | `db-mcp`     | 9101 | MCP server — 7 read-only tools against the cropcompass DB. |
 | `chroma`     | 8001 | Standalone ChromaDB **1.5.9** vector store (persists `./data/chromadb`; container port 8000). |
 | `chroma-mcp` | 9103 | MCP server — multilingual semantic search; embedder **baked into the image** (runs offline), queries `chroma` over HTTP. |
-| `agent`      | 8000 | The agent. Auto-discovers all MCP tools on startup. |
+| `agent`      | 8001 | The agent. Auto-discovers all MCP tools on startup. |
+| `ui`         | 5173 | React/Vite SPA (Nginx). Language selector, onboarding wizard, streaming chat in 9 Indic languages. |
 
 ---
 
@@ -60,18 +61,22 @@ LM_STUDIO_MODEL=qwen/qwen3-coder-30b   # match the model name shown in LM Studio
 ### 2. Start everything
 
 ```bash
-cd agent_service
-cp .env.example .env   # edit LM_STUDIO_MODEL to match your loaded model
-docker compose up -d
+cd cropcompass
+cp .env.example .env   # edit LM_STUDIO_MODEL, VITE_API_URL, VITE_WS_URL
+docker compose up --build -d
 ```
 
 
 ### 3. Verify it's alive
 
 ```bash
-curl http://localhost:8000/health        # → {"status":"ok"}
-curl http://localhost:8000/tools | python3 -m json.tool  # → list of all MCP tools
+curl http://localhost:8000/health        # → {"status":"ok"}  (IMD API)
+curl http://localhost:8001/health        # → {"status":"ok"}  (agent)
+curl http://localhost:8001/tools | python3 -m json.tool  # → list of all MCP tools
+curl -sf http://localhost:5173/ | head -3  # → HTML — UI is serving
 ```
+
+Open **http://localhost:5173** in a browser to see the CropCompass SPA.
 
 ---
 
@@ -299,6 +304,85 @@ pytest -q          # 31 unit tests pass, 2 integration tests skip (need live LM 
 # Run integration tests too
 LM_STUDIO_MODEL=qwen/qwen3-coder-30b pytest -q
 ```
+
+---
+
+## Frontend (UI Container)
+
+The React/Vite SPA is containerised as a two-stage Docker build and served by
+Nginx on host port **5173**.
+
+### Required files (create if absent)
+
+**`ui/nginx.conf`** — SPA routing + cache headers:
+```nginx
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    location / { try_files $uri $uri/ /index.html; }
+    location ~* \.(js|css|woff2?|svg|png|ico|webp)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location = /index.html { add_header Cache-Control "no-store"; }
+}
+```
+
+**`ui/Dockerfile`** — two-stage build:
+```dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY ui/package.json ui/package-lock.json* ./
+RUN npm ci --ignore-scripts
+ARG VITE_API_URL=http://localhost:8000
+ARG VITE_WS_URL=ws://localhost:8001
+ARG VITE_USE_MOCK=false
+ENV VITE_API_URL=$VITE_API_URL VITE_WS_URL=$VITE_WS_URL VITE_USE_MOCK=$VITE_USE_MOCK
+COPY ui/ .
+RUN npm run build
+
+FROM nginx:1.27-alpine AS runner
+COPY ui/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/dist /usr/share/nginx/html
+EXPOSE 80
+```
+
+### `.env` variables for the UI build
+
+```dotenv
+# Baked into the JS bundle at build time — change requires docker compose build ui
+VITE_API_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8001
+VITE_USE_MOCK=false
+```
+
+### Build & run
+
+```bash
+# Rebuild after source changes or VITE_* var changes
+docker compose build ui
+docker compose up -d ui
+
+# Check it's serving
+curl -sf http://localhost:5173/
+# Open in browser
+start http://localhost:5173   # Windows
+open  http://localhost:5173   # macOS
+```
+
+### Local dev (hot-reload, no container)
+
+```bash
+cd ui
+VITE_API_URL=http://localhost:8000 VITE_WS_URL=ws://localhost:8001 npm run dev
+# Opens http://localhost:5173 with hot-reload
+```
+
+> **Note:** `VITE_*` vars are compiled into the bundle by Vite at **build time**.
+> They are not read from the environment at container runtime. After editing them
+> in `.env` you must rebuild the image with `docker compose build ui`.
 
 ---
 

@@ -464,6 +464,137 @@ docker compose up -d
 
 ---
 
+## Phase 10 — Frontend Containerisation
+
+The React/Vite SPA in `ui/` must be built into a static bundle and served via
+an Nginx container. The container is part of the unified `docker-compose.yml`
+stack and is the only public-facing entry-point for browser clients.
+
+### 10.1 Create `ui/Dockerfile`
+
+Multi-stage build — Node 20 builder → Nginx 1.27 alpine image:
+
+```dockerfile
+# ── Stage 1: build the Vite bundle ───────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Install deps (cache this layer)
+COPY ui/package.json ui/package-lock.json* ./
+RUN npm ci --ignore-scripts
+
+# Inject runtime env vars as Vite compile-time substitutions.
+# Set defaults here; override via docker-compose.yml build args.
+ARG VITE_API_URL=http://localhost:8000
+ARG VITE_WS_URL=ws://localhost:8001
+ARG VITE_USE_MOCK=false
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_WS_URL=$VITE_WS_URL \
+    VITE_USE_MOCK=$VITE_USE_MOCK
+
+COPY ui/ .
+RUN npm run build
+# Output → /app/dist
+
+# ── Stage 2: serve with Nginx ─────────────────────────────────
+FROM nginx:1.27-alpine AS runner
+
+# SPA fallback — route all 404s to index.html so React Router works
+COPY ui/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+```
+
+### 10.2 Create `ui/nginx.conf`
+
+```nginx
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # SPA fallback — send all non-file requests to index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Cache static assets aggressively (Vite adds content hashes)
+    location ~* \.(js|css|woff2?|svg|png|ico|webp)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # No caching for the HTML entry point itself
+    location = /index.html {
+        add_header Cache-Control "no-store";
+    }
+}
+```
+
+### 10.3 Add `ui` service to `docker-compose.yml`
+
+```yaml
+  # ── React/Vite frontend (port 5173) ──────────────────────────
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+      args:
+        # Must point to the host-visible addresses so the browser (not Docker)
+        # can reach the API and WebSocket:
+        VITE_API_URL:  ${VITE_API_URL:-http://localhost:8000}
+        VITE_WS_URL:   ${VITE_WS_URL:-ws://localhost:8001}
+        VITE_USE_MOCK: ${VITE_USE_MOCK:-false}
+    container_name: cropcompass-ui
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      api:   { condition: service_healthy }
+      agent: { condition: service_started }
+```
+
+> **Port note:** Nginx inside the container listens on port 80. The host maps it to
+> **5173** to preserve the same origin developers are used to from `npm run dev`.
+> Change to `80:80` or `443:443` for production behind a real domain.
+
+> **`VITE_*` env vars are baked at build time**, not at runtime. They need to be
+> correct when `docker compose build` runs, not when the container starts. If you
+> change the API URL you must rebuild the `ui` image (`docker compose build ui`).
+
+### 10.4 Update `docker-compose.yml` volumes section
+
+No named volume is needed for the UI container — all content is baked into the
+image. No changes to the `volumes:` block.
+
+### 10.5 Add `VITE_*` vars to `.env.example`
+
+```dotenv
+# ── Frontend (Vite build-time substitutions) ─────────────────
+# These are baked into the JS bundle at image-build time.
+# After changing them you must rebuild: docker compose build ui
+VITE_API_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8001
+VITE_USE_MOCK=false
+```
+
+### 10.6 `.dockerignore` entries to keep the image lean
+
+Ensure these paths are excluded when the Docker build context is sent to the
+daemon (they would otherwise be copied by `COPY ui/ .` in stage 1):
+
+```
+ui/node_modules
+ui/.vite
+ui/dist
+ui/coverage
+```
+
+---
+
 ## Phase 8 — Merge Execution Order
 
 ```bash

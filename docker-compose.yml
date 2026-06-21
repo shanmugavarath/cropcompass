@@ -61,7 +61,14 @@ services:
   # Thin MCP: computes multilingual query embeddings, then queries the chroma
   # container over HTTP. No DB file access — chroma owns the data.
   chroma-mcp:
-    build: { context: ., dockerfile: mcp_servers/chroma_server/Dockerfile }
+    build:
+      context: .
+      dockerfile: mcp_servers/chroma_server/Dockerfile
+      args:
+        # Pass your corporate CA cert if the build host is behind an SSL-inspecting
+        # proxy (set CORP_CA_CERT in your .env or shell before running docker compose):
+        #   export CORP_CA_CERT="$(cat /path/to/corp-ca.pem)"
+        CORP_CA_CERT: ${CORP_CA_CERT:-}
     container_name: agent-chroma-mcp
     restart: unless-stopped
     command: uvicorn mcp_servers.chroma_server.server:app --host 0.0.0.0 --port 9103
@@ -128,6 +135,28 @@ services:
     depends_on:
       db-mcp:     { condition: service_started }
       chroma-mcp: { condition: service_started }
+
+  # ── React/Vite frontend (port 5173) ───────────────────────────
+  # Two-stage build: Node 20 builder → Nginx 1.27 alpine.
+  # VITE_* vars are baked into the JS bundle at image-build time, not at runtime.
+  # After changing them in .env, rebuild: docker compose build ui
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+      args:
+        # Must use host-visible addresses (not Docker-internal hostnames) because
+        # the browser — not Docker — makes these requests.
+        VITE_API_URL:  ${VITE_API_URL:-http://localhost:8000}
+        VITE_WS_URL:   ${VITE_WS_URL:-ws://localhost:8001}
+        VITE_USE_MOCK: ${VITE_USE_MOCK:-false}
+    container_name: cropcompass-ui
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      api:   { condition: service_healthy }
+      agent: { condition: service_started }
 
 volumes:
   pg_data:

@@ -13,3 +13,8 @@ build/
 db/
 # Chroma store (~800MB) – mounted at runtime, never baked into the image
 data/
+# UI build artefacts – not needed in any backend image (ui/Dockerfile copies them explicitly)
+ui/node_modules/
+ui/.vite/
+ui/dist/
+ui/coverage/
