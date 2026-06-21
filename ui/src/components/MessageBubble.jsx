@@ -42,6 +42,43 @@ export default function MessageBubble({ message }) {
     )
   }
 
+  // In-progress streaming bubble — text grows token by token
+  if (message.type === 'streaming') {
+    return (
+      <div className="message-row message-row--assistant">
+        <div className="message-bubble message-bubble--assistant message-bubble--streaming">
+          <span>{message.text}</span>
+          <span className="streaming-cursor" aria-hidden="true" />
+        </div>
+      </div>
+    )
+  }
+
+  // Clarification question from the agent
+  if (message.type === 'question') {
+    return (
+      <div className="message-row message-row--assistant">
+        <div className="message-bubble message-bubble--assistant message-bubble--question">
+          {message.text}
+        </div>
+      </div>
+    )
+  }
+
+  // Error from the agent or network
+  if (message.type === 'error') {
+    return (
+      <div className="message-row message-row--assistant">
+        <div
+          className="message-bubble message-bubble--assistant message-bubble--error"
+          role="alert"
+        >
+          {message.text}
+        </div>
+      </div>
+    )
+  }
+
   // Standard assistant response with verdict + citations
   return (
     <div className="message-row message-row--assistant">

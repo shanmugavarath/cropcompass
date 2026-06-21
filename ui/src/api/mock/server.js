@@ -83,9 +83,54 @@ export const handlers = [
 
 export const worker = setupWorker(...handlers)
 
-// Mock socket — mimics socket.io-client API; replies ~800ms after 'chat' emit
+// Mock socket — emits StreamEvent frames matching the agent's wire protocol.
+// Sequence per chat message:
+//   phase(gather) → tool_call → tool_result → phase(generate)
+//   → token × N → phase(verify) → verdict → phase(translate) → final
 export function getMockSocket() {
   const listeners = {}
+
+  function dispatch(type, data, sid) {
+    const frame = { type, data, session_id: sid }
+    ;(listeners[type] ?? []).forEach(h => h(frame))
+  }
+
+  function emitStream(response, sid) {
+    const words = response.text
+      ? response.text.split(' ')
+      : ['Please', 'consult', 'your', 'local', 'Krishi', 'Vigyan', 'Kendra.']
+
+    let t = 0
+    const step = ms => { t += ms; return t }
+
+    setTimeout(() => dispatch('phase',       { phase: 'gather' }, sid),                                        step(120))
+    setTimeout(() => dispatch('tool_call',   { name: 'get_farmer_profile' }, sid),                             step(80))
+    setTimeout(() => dispatch('tool_result', { name: 'get_farmer_profile',   ok: true, preview: 'district: Pune' }, sid), step(200))
+    setTimeout(() => dispatch('tool_call',   { name: 'fetch_latest_advisory' }, sid),                          step(60))
+    setTimeout(() => dispatch('tool_result', { name: 'fetch_latest_advisory', ok: true, preview: 'moderate rainfall expected' }, sid), step(250))
+    setTimeout(() => dispatch('tool_call',   { name: 'query_knowledge_base' }, sid),                           step(60))
+    setTimeout(() => dispatch('tool_result', { name: 'query_knowledge_base',  ok: true, preview: '5 chunks retrieved' }, sid), step(300))
+    setTimeout(() => dispatch('phase',       { phase: 'generate' }, sid),                                      step(80))
+
+    // Stream response text word by word
+    words.forEach((word, i) => {
+      setTimeout(
+        () => dispatch('token', { delta: (i === 0 ? '' : ' ') + word }, sid),
+        step(60),
+      )
+    })
+
+    setTimeout(() => dispatch('phase',   { phase: 'verify' }, sid),                                           step(150))
+    setTimeout(() => dispatch('verdict', { verdict: response.verdict, citations: response.citations ?? {} }, sid), step(200))
+    setTimeout(() => dispatch('phase',   { phase: 'translate' }, sid),                                        step(80))
+    setTimeout(() => dispatch('final', {
+      text:       response.text,
+      lang:       response.lang,
+      verdict:    response.verdict,
+      citations:  response.citations ?? {},
+      session_id: sid,
+    }, sid), step(200))
+  }
 
   return {
     on(event, handler) {
@@ -99,11 +144,10 @@ export function getMockSocket() {
     },
     emit(event) {
       if (event === 'chat') {
-        setTimeout(() => {
-          const response = MOCK_RESPONSES[mockCallCount % MOCK_RESPONSES.length]
-          mockCallCount++
-          ;(listeners['response'] ?? []).forEach(h => h(response))
-        }, 800)
+        const response = MOCK_RESPONSES[mockCallCount % MOCK_RESPONSES.length]
+        mockCallCount++
+        const sid = `mock-session-${mockCallCount.toString().padStart(3, '0')}`
+        emitStream(response, sid)
       }
     },
     disconnect() {},

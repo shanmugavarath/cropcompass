@@ -5,7 +5,7 @@ import MessageBubble from './MessageBubble'
 import InputBar from './InputBar'
 
 export default function ChatWindow({ farmerId }) {
-  const { messages, sendMessage, pending } = useChat(farmerId)
+  const { messages, sendMessage, pending, streaming, status } = useChat(farmerId)
   const bottomRef = useRef(null)
   const navigate = useNavigate()
 
@@ -41,14 +41,21 @@ export default function ChatWindow({ farmerId }) {
           <MessageBubble key={i} message={msg} />
         ))}
 
-        {pending && (
+        {pending && !streaming && (
           <div className="message-row message-row--assistant">
             <div className="message-bubble message-bubble--assistant">
-              <div className="typing-indicator" aria-label="Typing…">
-                <span /><span /><span />
-              </div>
+              {status ? (
+                <p className="agent-status" aria-live="polite">{status}</p>
+              ) : (
+                <div className="typing-indicator" aria-label="Typing…">
+                  <span /><span /><span />
+                </div>
+              )}
             </div>
           </div>
+        )}
+        {streaming && status && (
+          <p className="agent-status agent-status--inline" aria-live="polite">{status}</p>
         )}
 
         <div ref={bottomRef} aria-hidden="true" />
