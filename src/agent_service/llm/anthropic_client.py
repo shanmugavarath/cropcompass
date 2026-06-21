@@ -98,5 +98,19 @@ async def _stream_anthropic(
                 yield LLMStreamEvent(
                     kind="message_end",
                     stop_reason=final.stop_reason,
-                    content=[b.model_dump() for b in final.content],
+                    content=[_clean_block(b) for b in final.content],
                 )
+
+
+def _clean_block(block: Any) -> dict[str, Any]:
+    """Reduce an SDK content block to only the fields the API accepts back on the
+    next request. model_dump() leaks response-only fields (e.g. text.parsed_output,
+    citations=None) that trigger 'Extra inputs are not permitted' when re-sent in
+    the planner's multi-turn tool loop."""
+    d = block.model_dump()
+    btype = d.get("type")
+    if btype == "text":
+        return {"type": "text", "text": d.get("text", "")}
+    if btype == "tool_use":
+        return {"type": "tool_use", "id": d.get("id"), "name": d.get("name"), "input": d.get("input", {})}
+    return d
