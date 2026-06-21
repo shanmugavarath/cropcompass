@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: cropcompass
       POSTGRES_PASSWORD: cropcompass_secret
     ports:
-      - "5432:5432"
+      - "6432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
       # Auto-loaded by Postgres on first boot, in alphabetical order.
