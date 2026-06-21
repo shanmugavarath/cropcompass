@@ -84,10 +84,10 @@ Merge both `docker-compose.yml` files into one. Target service layout:
 ```
 db          (pgvector/pgvector:pg15, port 5432)  ← single shared DB
 db-mcp      (port 9101)                          ← agentic_solution MCP (Postgres read tools)
-chroma      (port 8002→8000)                     ← ChromaDB 1.5.9 standalone store
+chroma      (host 8001 → container 8000)         ← ChromaDB 1.5.9 standalone store
 chroma-mcp  (port 9103)                          ← agentic_solution MCP (semantic search)
 api         (port 8000)                          ← imd-scraper FastAPI (profile/forecast/rainfall/chat-proxy)
-agent       (port 8001)                          ← agentic_solution agent service
+agent       (internal 8001, no host exposure)    ← agentic_solution agent service
 ```
 
 > **Vector store decision (updated):** `agentic_solution` has fully replaced the pgvector-based
@@ -96,10 +96,10 @@ agent       (port 8001)                          ← agentic_solution agent serv
 > queries `chroma` over HTTP. `vector-mcp` and `mcp_servers/vector_server/` are **deleted** in that
 > branch and must not be restored.
 >
-> **Port conflict to resolve:** `agentic_solution` runs the agent on port 8000; the unified
-> compose keeps port 8000 for the IMD API (`api` service). The agent must be remapped to **8001**
-> and `AGENT_SERVICE_URL=http://agent:8001` in the `api` environment. The `chroma` container's
-> internal port 8000 must be mapped to host port **8002** to avoid the api/chroma collision.
+> **Port assignments (resolved):** `api` owns host port 8000. `chroma`'s internal port 8000 is
+> mapped to host port **8001** for local debugging access (`http://localhost:8001`). The `agent`
+> service runs on internal port 8001 and is reachable within Docker via `http://agent:8001`; it
+> does not require a separate host-port mapping since only `api` calls it over the Docker network.
 
 Unified `docker-compose.yml` structure:
 
@@ -124,7 +124,7 @@ services:
       ANONYMIZED_TELEMETRY: "FALSE"
     volumes:
       - ./data/chromadb:/data             # host-mounted (not a named volume)
-    ports: ["8002:8000"]                  # host 8002 to avoid collision with api:8000
+    ports: ["8001:8000"]                  # host 8001 → container 8000 (for local debug access)
 
   chroma-mcp:
     build: { context: ., dockerfile: mcp_servers/chroma_server/Dockerfile }
@@ -499,7 +499,7 @@ git merge origin/feature/frontend
   ```bash
   docker compose up -d
   docker compose ps   # all containers must show "healthy" or "running"
-  # Expected services: db (5432), db-mcp (9101), chroma (8002), chroma-mcp (9103), api (8000), agent (8001)
+  # Expected services: db (5432), db-mcp (9101), chroma (8001), chroma-mcp (9103), api (8000), agent (internal 8001)
   ```
 - [ ] ChromaDB store loaded (check before starting stack)
   ```bash
