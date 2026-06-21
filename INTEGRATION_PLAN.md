@@ -83,15 +83,23 @@ Merge both `docker-compose.yml` files into one. Target service layout:
 
 ```
 db          (pgvector/pgvector:pg15, port 5432)  ← single shared DB
-db-mcp      (port 9101)                          ← agentic_solution MCP
-vector-mcp  (port 9102)                          ← agentic_solution MCP
+db-mcp      (port 9101)                          ← agentic_solution MCP (Postgres read tools)
+chroma      (port 8002→8000)                     ← ChromaDB 1.5.9 standalone store
+chroma-mcp  (port 9103)                          ← agentic_solution MCP (semantic search)
 api         (port 8000)                          ← imd-scraper FastAPI (profile/forecast/rainfall/chat-proxy)
 agent       (port 8001)                          ← agentic_solution agent service
 ```
 
-> **Decision on vector store:** Drop the ChromaDB service (`vectordb`) from imd-scraper and use the
-> pgvector-based `vector-mcp` from agentic_solution exclusively. Both PostgreSQL images already
-> include pgvector, so no extra container is needed.
+> **Vector store decision (updated):** `agentic_solution` has fully replaced the pgvector-based
+> `vector-mcp` with a two-tier ChromaDB architecture: a standalone `chroma` container (ChromaDB
+> 1.5.9, persists `./data/chromadb` on the host) and a thin `chroma-mcp` that embeds queries and
+> queries `chroma` over HTTP. `vector-mcp` and `mcp_servers/vector_server/` are **deleted** in that
+> branch and must not be restored.
+>
+> **Port conflict to resolve:** `agentic_solution` runs the agent on port 8000; the unified
+> compose keeps port 8000 for the IMD API (`api` service). The agent must be remapped to **8001**
+> and `AGENT_SERVICE_URL=http://agent:8001` in the `api` environment. The `chroma` container's
+> internal port 8000 must be mapped to host port **8002** to avoid the api/chroma collision.
 
 Unified `docker-compose.yml` structure:
 
@@ -99,17 +107,38 @@ Unified `docker-compose.yml` structure:
 services:
   db:
     image: pgvector/pgvector:pg15
-    # init scripts: 01_schema.sql, 02_conversations.sql, 03_vector.sql
+    # init scripts: 01_schema.sql, 02_conversations.sql
+    # NOTE: 03_vector.sql (pgvector embeddings table) removed — vector store is now ChromaDB
 
   db-mcp:
     build: { context: ., dockerfile: mcp_servers/Dockerfile }
+    command: uvicorn mcp_servers.db_server.server:app --host 0.0.0.0 --port 9101
     ports: ["9101:9101"]
     depends_on: [db]
 
-  vector-mcp:
-    build: { context: ., dockerfile: mcp_servers/Dockerfile }
-    ports: ["9102:9102"]
-    depends_on: [db]
+  chroma:
+    image: chromadb/chroma:1.5.9          # MUST be 1.5.9 — on-disk schema at migration v10
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /data
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - ./data/chromadb:/data             # host-mounted (not a named volume)
+    ports: ["8002:8000"]                  # host 8002 to avoid collision with api:8000
+
+  chroma-mcp:
+    build: { context: ., dockerfile: mcp_servers/chroma_server/Dockerfile }
+    command: uvicorn mcp_servers.chroma_server.server:app --host 0.0.0.0 --port 9103
+    environment:
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+      CHROMA_EMBED_MODEL: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+      CHROMA_PRIMARY_COLLECTION: icar_knowledge_en
+      CHROMA_FALLBACK_COLLECTION: icar_knowledge
+      HF_HUB_OFFLINE: "1"               # embedder is baked into the image
+      TRANSFORMERS_OFFLINE: "1"
+    ports: ["9103:9103"]
+    depends_on: [chroma]
 
   api:
     build: { context: ., dockerfile: Dockerfile.api }
@@ -120,11 +149,17 @@ services:
 
   agent:
     build: { context: ., dockerfile: Dockerfile.agent }
-    ports: ["8001:8001"]
+    ports: ["8001:8001"]                  # remapped from 8000 in agentic_solution branch
+    command: uvicorn agent_service.main:app --host 0.0.0.0 --port 8001
     environment:
-      MCP_SERVER_URLS: http://db-mcp:9101,http://vector-mcp:9102
-    depends_on: [db-mcp, vector-mcp]
+      MCP_SERVER_URLS: http://db-mcp:9101,http://chroma-mcp:9103
+    depends_on: [db-mcp, chroma-mcp]
 ```
+
+> **Data bootstrapping (required before first `docker compose up`):**
+> The ChromaDB store at `./data/chromadb` must be populated before starting the stack.
+> See §7.6 for ingestion instructions. Without it `chroma-mcp` will start but
+> `query_knowledge_base` will return empty results.
 
 ---
 
@@ -204,7 +239,7 @@ Required changes to `useChat.js`:
 
 ```dotenv
 # ── Shared PostgreSQL ────────────────────────────────────────
-DATABASE_URL=postgresql+asyncpg://cropcompass:cropcompass_secret@db:5432/cropcompass
+DATABASE_URL=postgresql://cropcompass:cropcompass_secret@db:5432/cropcompass
 POSTGRES_DB=cropcompass
 POSTGRES_USER=cropcompass
 POSTGRES_PASSWORD=cropcompass_secret
@@ -213,8 +248,26 @@ POSTGRES_PASSWORD=cropcompass_secret
 LLM_BACKEND=lm_studio          # or: anthropic
 ANTHROPIC_API_KEY=
 LM_STUDIO_BASE_URL=http://host.docker.internal:1234
-LM_STUDIO_MODEL=local-model
+LM_STUDIO_MODEL=qwen/qwen3-coder-30b   # must match exact model id in LM Studio UI
 SESSION_BACKEND=postgres        # or: memory
+MAX_PLANNER_ITERATIONS=6
+
+# ── MCP servers ───────────────────────────────────────────────
+# Docker (set in docker-compose.yml): http://db-mcp:9101,http://chroma-mcp:9103
+# Local dev (non-Docker):
+MCP_SERVER_URLS=http://localhost:9101,http://localhost:9103
+MCP_REQUEST_TIMEOUT_S=15
+
+# ── ChromaDB ─────────────────────────────────────────────────
+# HTTP mode (Docker): set CHROMA_HOST + CHROMA_PORT
+CHROMA_HOST=chroma
+CHROMA_PORT=8000
+# Embedded mode (local dev, no Docker): leave CHROMA_HOST empty, set CHROMA_PATH
+CHROMA_PATH=data/chromadb
+# MUST match the model the store was built with — version pinned to 1.5.9
+CHROMA_EMBED_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+CHROMA_PRIMARY_COLLECTION=icar_knowledge_en
+CHROMA_FALLBACK_COLLECTION=icar_knowledge
 
 # ── IMD API service ──────────────────────────────────────────
 AGENT_SERVICE_URL=http://agent:8001
@@ -241,7 +294,7 @@ Both services currently use `allow_origins=["*"]`. Tighten to explicit frontend 
 
 | Module | Path | Role at runtime |
 |---|---|---|
-| RAG retriever | `api/services/rag.py` | Called by the agent's MCP tool to fetch crop-advisory chunks from ChromaDB |
+| RAG retriever | `api/services/rag.py` | Original ChromaDB retrieval logic — **superseded** by `mcp_servers/chroma_server/retriever.py` in `agentic_solution` (see §7.3) |
 | Translation service | `api/services/translation.py` | Translates farmer queries → English (for retrieval) and agent responses → farmer's language |
 | Language detection | `api/services/lang_detect.py` | Detects script/language of incoming message; handles Hinglish code-switching |
 | Ingestion pipeline | `ingestion/` | **Run once** (or on new data) to build `data/chromadb/`; not in the request path |
@@ -250,9 +303,10 @@ Both services currently use `allow_origins=["*"]`. Tighten to explicit frontend 
 
 | File | Conflict Type | Resolution |
 |---|---|---|
-| `requirements.txt` | imd-scraper and Shanu/RAG both define one; agentic_solution has its own | Merge into a single root `requirements.txt` (see §7.2) |
+| `requirements.txt` | imd-scraper and Shanu/RAG both define one; agentic_solution uses `pyproject.toml` | Merge into a single root `requirements.txt` (see §7.2) |
 | `.gitignore` | Minor line change — Shanu/RAG adds `data/chromadb/`, `data/raw/`, `data/*.json` | Accept Shanu/RAG additions; ensure `data/` artifacts are excluded globally |
 | `ingestion/imd_scraper.py` | Both imd-scraper and Shanu/RAG include an IMD scraper | Shanu/RAG's version feeds ChromaDB; imd-scraper's version feeds PostgreSQL — keep **both** under a shared `ingestion/` package (they don't overlap at the function level) |
+| `mcp_servers/vector_server/` | agentic_solution **deletes** this entire directory | Accept deletion — ChromaDB via `chroma-mcp` is the only vector search path |
 
 No conflicts expected in `api/services/` — that directory does not exist in any other branch.
 
@@ -261,9 +315,9 @@ No conflicts expected in `api/services/` — that directory does not exist in an
 After merging all four branches, produce a single top-level `requirements.txt` that unions all dependencies. Minimum set of additions from `Shanu/RAG`:
 
 ```
-# RAG / embeddings
-chromadb>=0.5.0
-sentence-transformers>=2.7.0
+# RAG / embeddings — ChromaDB MUST be pinned to 1.5.9 (on-disk schema v10)
+chromadb==1.5.9
+sentence-transformers>=3.0
 langchain-text-splitters>=0.2.0
 
 # PDF ingestion
@@ -285,39 +339,38 @@ lingua-language-detector>=2.0.0
 rouge-score>=0.1.2
 ```
 
+> **Version pin:** `chromadb==1.5.9` is non-negotiable. The persisted `data/chromadb` store was
+> built with that version (migration v10). Any other version will either panic on migration or
+> silently corrupt the store.
+>
 > **GPU note:** `torch` defaults to a CPU wheel. On the agent container (which runs inference),
 > install torch from `https://pytorch.org` with the matching CUDA index URL before
 > `pip install -r requirements.txt`.
 
-### 7.3 Wire RAG into the agent service
+### 7.3 Wire RAG into the agent service (updated)
 
-`api/services/rag.query_knowledge_base()` has a **frozen signature** that Member 3's MCP tool
-definitions depend on. Do not rename or reorder its parameters.
+**`agentic_solution` already handles this.** The new `chroma-mcp` server (port 9103) exposes
+`query_knowledge_base` as an MCP tool — identical signature to what Shanu/RAG's
+`api/services/rag.query_knowledge_base()` uses. The agent discovers it automatically at startup
+via `MCP_SERVER_URLS=http://db-mcp:9101,http://chroma-mcp:9103`. No additional wiring is needed.
 
-In `agentic_solution`, the vector MCP server (`mcp_servers/vector_server/`) currently embeds
-its own retrieval logic against pgvector. After merging, the agent can call
-`query_knowledge_base()` directly (Option A) or continue using the vector MCP (Option B):
+Tools exposed by `chroma-mcp`:
+- `query_knowledge_base(query, top_k=5, crop?, soil?)` — dual-collection semantic search
+- `fetch_chunk(chunk_id)` — exact chunk lookup by ID
+- `list_collections()` — lists available Chroma collections and chunk counts
 
-**Option A — direct Python import (recommended):** Mount `api/services/rag.py` into the agent
-container and call it from `AgentRunner`. Requires the `data/chromadb/` volume to be mounted
-in the agent container.
+**Embedding model:** `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (384-dim,
+multilingual). Maps Tamil (TNAU corpus) and English (ICAR/IMD corpus) into the same vector space
+so English queries retrieve Tamil chunks. The model is **baked into the `chroma-mcp` image** and
+runs fully offline (`HF_HUB_OFFLINE=1`) — no HuggingFace network access at runtime.
 
-```python
-# Inside AgentRunner.run() or a new MCP tool handler:
-from api.services.rag import query_knowledge_base
+**Collections:**
+- `icar_knowledge_en` — all-English collection (IMD + translated SAU). Primary.
+- `icar_knowledge` — original collection with untranslated Tamil SAU chunks. Fallback.
+Both are queried, results merged by distance score, deduplicated by `chunk_id`.
 
-chunks = query_knowledge_base(
-    crop=farmer.crop,
-    soil=farmer.soil_type,
-    query=translated_query,   # English (after translation step below)
-    k=5,
-)
-context = "\n\n".join(c["text"] for c in chunks)
-```
-
-**Option B — keep vector MCP:** Leave the pgvector-based MCP in place for session history /
-structured data, and call `query_knowledge_base()` only for unstructured agronomic knowledge.
-Both can coexist — they use different stores (ChromaDB vs pgvector).
+`api/services/rag.py` from `Shanu/RAG` can be kept as a standalone module but is **not
+called at request time** — the agent uses the MCP path instead.
 
 ### 7.4 Wire translation into the query/response pipeline
 
@@ -327,7 +380,7 @@ The translation service operates in two directions:
 Farmer query (any Indic language)
     → lang_detect.detect_with_codeswitching()   # e.g. "tam_Taml"
     → TranslationService(INDIC_EN).translate()  # Tamil → English
-    → RAG retrieval (English query hits both corpora)
+    → RAG retrieval via chroma-mcp (English query hits both corpora)
     → AgentRunner produces English recommendation
     → TranslationService(EN_INDIC).translate(tgt_lang=farmer.lang_pref)
     → Farmer sees response in their language
@@ -375,40 +428,37 @@ _detector = LanguageDetectorBuilder.from_languages(
 Also extend `TranslationService.SUPPORTED` to include `"ben_Beng"`, `"kan_Knda"`, `"mal_Mlym"`.
 IndicTrans2 supports all three out of the box; no model change required.
 
-### 7.6 Mount ChromaDB volume in Docker Compose
+### 7.6 ChromaDB data bootstrapping
 
-Add a named volume for the ChromaDB store and mount it into the agent container
-(and optionally an ingestion service for one-time data loading):
+The `./data/chromadb` directory (host-mounted into the `chroma` container) must be populated
+before the first `docker compose up`. The store is ~800 MB and pinned to ChromaDB **1.5.9**.
 
-```yaml
-# docker-compose.yml additions
+**One-time ingestion (run on the host before `docker compose up`):**
+```bash
+# Install deps (matches chroma-mcp image versions)
+pip install "chromadb==1.5.9" "sentence-transformers>=3.0" pdfplumber pytesseract pdf2image
 
-services:
-  agent:
-    # ... existing definition ...
-    volumes:
-      - chromadb_data:/app/data/chromadb
-    environment:
-      # existing envs +
-      INDIC_EN_MODEL: ai4bharat/indictrans2-indic-en-1B
-      EN_INDIC_MODEL: ai4bharat/indictrans2-en-indic-1B
+# Run the ingestion pipeline — requires SAU OCR JSON files at data/raw/SAU_ocr_output/
+python -m ingestion.ingest_to_chromadb
 
-  ingest:                          # run once: docker compose run --rm ingest
-    build: { context: ., dockerfile: Dockerfile.agent }
-    command: python -m ingestion.ingest_to_chromadb
-    volumes:
-      - chromadb_data:/app/data/chromadb
-      - ./data/raw:/app/data/raw:ro
-    depends_on: []                 # no DB dependency — ChromaDB is file-based
-
-volumes:
-  chromadb_data:
+# Verify both collections exist
+python3 -c "
+import chromadb
+c = chromadb.PersistentClient('data/chromadb')
+for col in c.list_collections():
+    print(col.name, col.count(), 'chunks')
+"
+# Expected:
+#   icar_knowledge_en  <N> chunks
+#   icar_knowledge     <N> chunks
 ```
 
-> **Data bootstrapping:** Before the first `docker compose up`, run the ingestion pipeline on
-> the host (or via `docker compose run --rm ingest`) to populate `data/chromadb/`. The volume
-> is then shared between the `ingest` and `agent` containers. The `data/raw/` SAU OCR JSON
-> files must be present on the host at `data/raw/SAU_ocr_output/`.
+After ingestion is done, start the stack:
+```bash
+docker compose up -d
+# chroma container loads the pre-built store from ./data/chromadb
+# chroma-mcp warmup log: chroma.ready collections=[...]
+```
 
 ---
 
@@ -449,6 +499,19 @@ git merge origin/feature/frontend
   ```bash
   docker compose up -d
   docker compose ps   # all containers must show "healthy" or "running"
+  # Expected services: db (5432), db-mcp (9101), chroma (8002), chroma-mcp (9103), api (8000), agent (8001)
+  ```
+- [ ] ChromaDB store loaded (check before starting stack)
+  ```bash
+  # Verify ./data/chromadb exists and has both collections
+  python3 -c "
+  import chromadb
+  c = chromadb.PersistentClient('data/chromadb')
+  for col in c.list_collections():
+      print(col.name, col.count(), 'chunks')
+  "
+  # Expected: icar_knowledge_en  <N> chunks
+  #           icar_knowledge     <N> chunks
   ```
 
 ### 9.2 Health checks
@@ -466,7 +529,8 @@ git merge origin/feature/frontend
 - [ ] Agent tool discovery
   ```bash
   curl -sf http://localhost:8001/tools
-  # Expected: {"tools": [...]} — list must include db_query, vector_search, translate_output
+  # Expected: {"tools": [...]} — list must include db_query, query_knowledge_base, translate_output
+  # NOTE: query_knowledge_base is now served by chroma-mcp (port 9103), not vector-mcp
   ```
 
 ### 9.3 Farmer profile (`/api/profile`)
@@ -650,8 +714,22 @@ git merge origin/feature/frontend
   pytest tests/test_mcp.py -v
   ```
 
-### 9.12 RAG pipeline
+### 9.12 RAG pipeline (chroma-mcp)
 
+- [ ] ChromaDB collections accessible via chroma-mcp
+  ```bash
+  curl -sf http://localhost:9103/mcp/tools/list_collections \
+    -H "Content-Type: application/json" -d '{}'
+  # Expected: {"collections": [{"name": "icar_knowledge_en", ...}, {"name": "icar_knowledge", ...}]}
+  ```
+- [ ] `query_knowledge_base` returns chunks via MCP
+  ```bash
+  curl -s http://localhost:9103/mcp/tools/query_knowledge_base \
+    -H "Content-Type: application/json" \
+    -d '{"query": "when to irrigate rice", "crop": "rice", "top_k": 3}' \
+    | python3 -m json.tool
+  # Expected: {"chunks": [{text, similarity, source, ...}, ...]} with >= 1 chunk
+  ```
 - [ ] RAG retrieval precision ≥ 0.70 on 25-query validation set
   ```bash
   pytest tests/test_rag.py -v
@@ -660,13 +738,19 @@ git merge origin/feature/frontend
   ```bash
   CROPCOMPASS_LATENCY_MS=200 pytest tests/test_latency.py -v -k rag
   ```
-- [ ] `query_knowledge_base` returns ≥ 1 chunk
-  ```python
-  # python3 -c
-  from api.services.rag import query_knowledge_base
-  chunks = query_knowledge_base("rice", "clay", "when to irrigate", k=5)
-  assert len(chunks) >= 1, f"Expected chunks, got {chunks}"
-  print(f"OK — {len(chunks)} chunks returned")
+- [ ] Multilingual retrieval — English query retrieves Tamil chunks
+  ```bash
+  curl -s http://localhost:9103/mcp/tools/query_knowledge_base \
+    -H "Content-Type: application/json" \
+    -d '{"query": "rice water requirement", "top_k": 5}' \
+    | python3 -c "
+  import sys,json
+  chunks = json.load(sys.stdin).get('chunks', [])
+  sources = [c.get('source','') for c in chunks]
+  print(f'Retrieved {len(chunks)} chunks')
+  print('Sources:', sources)
+  "
+  # Expected: chunks from both icar_knowledge_en and icar_knowledge collections
   ```
 
 ### 9.13 Language detection & translation
@@ -699,8 +783,11 @@ git merge origin/feature/frontend
 | 3 | **`lang_pref` constraint** — DB rejects 3 new languages | 🟠 High | `db/schema.sql` |
 | 4 | **Duplicate `docker-compose.yml`** — port 8000 and 5432 collide | 🟠 High | merge into unified compose |
 | 5 | **Frontend streaming not handled** — `useChat.js` expects single event | 🟠 High | `ui/src/hooks/useChat.js` |
-| 6 | **RAG not wired into agent** — `query_knowledge_base()` is never called at request time | 🔴 Critical | `agentic_solution` AgentRunner + §7.3 |
+| 6 | **RAG wiring** — `chroma-mcp` must be in `MCP_SERVER_URLS`; `vector-mcp` removed | 🔴 Critical | `docker-compose.yml` `MCP_SERVER_URLS=http://db-mcp:9101,http://chroma-mcp:9103` |
 | 7 | **Translation singleton not instantiated at startup** — constructing per-request loads 2 GB twice | 🟠 High | agent `main.py` startup + §7.4 |
 | 8 | **`lang_detect.py` covers only 6 of 9 languages** — Bengali/Kannada/Malayalam fall back silently to English | 🟡 Medium | `api/services/lang_detect.py` + §7.5 |
-| 9 | **ChromaDB volume not mounted** — agent container has no access to `data/chromadb/` | 🔴 Critical | `docker-compose.yml` + §7.6 |
+| 9 | **ChromaDB not bootstrapped** — `./data/chromadb` must exist before `docker compose up` | 🔴 Critical | run ingestion pipeline on host first + §7.6 |
 | 10 | **`requirements.txt` conflict** — four branches each define overlapping dependency files | 🟠 High | merge into single root `requirements.txt` + §7.2 |
+| 11 | **Agent port conflict** — `agentic_solution` uses port 8000; unified compose assigns 8000 to `api` | 🔴 Critical | remap agent to port 8001 in unified `docker-compose.yml` + §3 |
+| 12 | **`chromadb==1.5.9` must be pinned** — newer versions cannot read on-disk schema v10 | 🔴 Critical | `requirements.txt` and `pyproject.toml` `[mcp-servers]` + §7.2 |
+| 13 | **Embedding model changed** — store built with `paraphrase-multilingual-MiniLM-L12-v2`; any other model produces mismatched vectors | 🔴 Critical | `CHROMA_EMBED_MODEL` env var in `chroma-mcp` service + §7.3 |

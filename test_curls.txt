@@ -1,0 +1,43 @@
+Test curls
+──────────
+ 
+A) Direct MCP — list collections
+bash ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_collections","arguments":{}}}' \
+| curl -s -X POST http://localhost:9103/mcp -H 'content-type: application/json' -d @- | python3 -m json.tool
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 
+B) Direct MCP — semantic queries (try a few crops/topics)
+bash ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+# rice irrigation
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"when should I irrigate rice","crop":"rice","top_k":3}}}' \
+| curl -s -X POST http://localhost:9103/mcp -H 'content-type: application/json' -d @- | python3 -m json.tool
+ 
+# cotton pest control
+echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"pest control for cotton bollworm","crop":"cotton","top_k":3}}}' \
+| curl -s -X POST http://localhost:9103/mcp -H 'content-type: application/json' -d @- | python3 -m json.tool
+ 
+# wheat fertilizer (no crop filter)
+echo '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"query_knowledge_base","arguments":{"query":"nitrogen fertilizer dose for wheat","top_k":3}}}' \
+| curl -s -X POST http://localhost:9103/mcp -H 'content-type: application/json' -d @- | python3 -m json.tool
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 
+C) Direct MCP — fetch a specific chunk by id
+bash ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+echo '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"fetch_chunk","arguments":{"chunk_id":"imd_a750fa56237f96c6"}}}' \
+| curl -s -X POST http://localhost:9103/mcp -H 'content-type: application/json' -d @- | python3 -m json.tool
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 
+D) Full app — agent chat (exercises ChromaDB + LLM end-to-end)
+bash ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+# Ravi Kumar, rice, Chennai
+echo '{"farmer_id":"c6bca0aa-3e67-404c-810b-4a470eadaee6","message":"When should I irrigate my rice crop and how much water does it need?","session_id":"q1"}' \
+| curl -s --max-time 170 -X POST http://localhost:8000/api/chat -H 'content-type: application/json' -d @- | python3 -m json.tool
+ 
+# follow-up about pests (same session, tests memory)
+echo '{"farmer_id":"c6bca0aa-3e67-404c-810b-4a470eadaee6","message":"What pests should I watch out for at this stage?","session_id":"q1"}' \
+| curl -s --max-time 170 -X POST http://localhost:8000/api/chat -H 'content-type: application/json' -d @- | python3 -m json.tool
+ 
+# a fertilizer question
+echo '{"farmer_id":"c6bca0aa-3e67-404c-810b-4a470eadaee6","message":"How much fertilizer should I apply?","session_id":"q2"}' \
+| curl -s --max-time 170 -X POST http://localhost:8000/api/chat -H 'content-type: application/json' -d @- | python3 -m json.tool
