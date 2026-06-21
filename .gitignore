@@ -11,3 +11,56 @@ build/
 .DS_Store
 # DB dump contains test-data names/phones — store outside repo in production
 db/cropcompass_dump.sql
+
+# Python
+
+*.py[cod]
+
+
+*.egg
+
+# Virtual environments
+
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment & secrets
+
+*.env.local
+
+# Data (large files — not committed)
+data/chromadb/
+data/raw/
+data/*.json
+CLAUDE.md
+# Model caches
+*.bin
+*.safetensors
+*.onnx
+
+# Pytest
+.pytest_cache/
+htmlcov/
+.coverage
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Exports & backups
+*.zip
+*.txt.bak
+trnalsation.txt
+
+# Colab notebook (convenience, not source code)
+colab_normalize.ipynb
+
+# Local testing (rigorous validation, not committed)
+test_local/

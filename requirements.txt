@@ -1,0 +1,48 @@
+# requirements.txt — Member 2: RAG Pipeline & Multilingual Services  (branch: Shanu/RAG)
+# Python 3.10+
+#
+# GPU note: `pip install torch` pulls the CPU build. For CUDA, install torch first from
+#   https://pytorch.org  (e.g. --index-url https://download.pytorch.org/whl/cu121), then
+#   `pip install -r requirements.txt`.
+
+# ---------------------------------------------------------------------------
+# Task 1.2 — RAG knowledge base (ChromaDB + embeddings + PDF ingestion)
+# ---------------------------------------------------------------------------
+chromadb>=0.5.0
+sentence-transformers>=2.7.0
+langchain-text-splitters>=0.2.0
+pdfplumber>=0.10.0
+requests>=2.31.0
+tqdm>=4.66.0
+
+# PDF OCR fallback for scanned SAU pages — also needs system packages:
+#   Ubuntu/Debian:  apt-get install tesseract-ocr poppler-utils
+#   Windows:        install Tesseract-OCR + Poppler and add both to PATH
+pytesseract>=0.3.10
+pdf2image>=1.17.0
+
+# ---------------------------------------------------------------------------
+# Task 3.1 — IndicTrans2 translation (en<->indic)
+#   - en->indic : translate the agent's English recommendation to the farmer's language
+#   - indic->en : translate the farmer's query to English for retrieval (see TASK.md note)
+# ---------------------------------------------------------------------------
+torch>=2.1.0
+transformers>=4.38,<4.46
+sentencepiece>=0.1.99
+sacremoses>=0.0.53
+IndicTransToolkit>=1.0.0        # IndicTrans2 pre/post-processing helpers
+
+# ---------------------------------------------------------------------------
+# Task 3.4 — language detection / routing
+# ---------------------------------------------------------------------------
+lingua-language-detector>=2.0.0
+
+# ---------------------------------------------------------------------------
+# Task 5.3 — multilingual evaluation (back-translation; reuses sentence-transformers)
+# ---------------------------------------------------------------------------
+rouge-score>=0.1.2
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+pytest>=8.0.0
