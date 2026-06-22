@@ -1,5 +1,7 @@
 import { useState, useId } from 'react'
 import LanguageTag from './LanguageTag'
+import EvalPanel from './EvalPanel'
+import Markdown from './Markdown'
 
 const SAFE_FALLBACK =
   'Please consult your local Krishi Vigyan Kendra for current advice.'
@@ -38,7 +40,7 @@ function VerdictBadge({ verdict }) {
   )
 }
 
-export default function RecommendationCard({ response }) {
+export default function RecommendationCard({ response, question, farmerId }) {
   const [showCitations, setShowCitations] = useState(false)
   // useId gives a unique ID per card instance — safe for aria-controls when
   // multiple RecommendationCards appear in the same message list
@@ -59,9 +61,7 @@ export default function RecommendationCard({ response }) {
           {SAFE_FALLBACK}
         </p>
       ) : (
-        <p className={`rec-card__text ${fontClass}`} lang={bcp47}>
-          {text}
-        </p>
+        <Markdown text={text} fontClass={fontClass} lang={bcp47} />
       )}
 
       <div className="rec-card__footer">
@@ -90,6 +90,17 @@ export default function RecommendationCard({ response }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Eval harness: "How this was evaluated" — judges THIS answer live */}
+      {verdict !== 'REJECT' && question && (
+        <EvalPanel
+          question={question}
+          answer={text}
+          farmerId={farmerId}
+          verdict={verdict}
+          citations={citations}
+        />
       )}
     </div>
   )

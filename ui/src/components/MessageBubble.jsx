@@ -83,7 +83,11 @@ export default function MessageBubble({ message }) {
   return (
     <div className="message-row message-row--assistant">
       <div className="message-bubble message-bubble--assistant">
-        <RecommendationCard response={message.data} />
+        <RecommendationCard
+          response={message.data}
+          question={message.question}
+          farmerId={message.farmerId}
+        />
       </div>
     </div>
   )

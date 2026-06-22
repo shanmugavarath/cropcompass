@@ -41,6 +41,9 @@ export function useChat(farmerId, langPref = 'eng_Latn') {
   // Tracks whether a streaming bubble is currently in the messages array.
   // A ref (not state) avoids stale-closure issues inside the onToken callback.
   const streamingActiveRef = useRef(false)
+  // The most recent user question — attached to the final assistant message so
+  // the "How this was evaluated" panel can re-evaluate that exact Q→A pair.
+  const lastUserMessageRef = useRef('')
 
   useEffect(() => {
     const socket = getSocket()
@@ -95,7 +98,12 @@ export function useChat(farmerId, langPref = 'eng_Latn') {
 
     function onFinal(event) {
       // event.data is AgentResponse: { text, lang, verdict, citations, session_id }
-      finalize({ role: 'assistant', data: event.data })
+      finalize({
+        role: 'assistant',
+        data: event.data,
+        question: lastUserMessageRef.current,
+        farmerId,
+      })
     }
 
     function onQuestion(event) {
@@ -137,6 +145,7 @@ export function useChat(farmerId, langPref = 'eng_Latn') {
   const sendMessage = useCallback(
     text => {
       streamingActiveRef.current = false
+      lastUserMessageRef.current = text
       setStreaming(false)
       setStatus(null)
       setMessages(prev => [...prev, { role: 'user', text }])

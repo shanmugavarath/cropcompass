@@ -1,7 +1,36 @@
 import { http, HttpResponse } from 'msw'
 import { setupWorker } from 'msw/browser'
+import { AGENT_BASE } from '../evaluate.js'
 
 const BASE = import.meta.env.VITE_API_URL
+
+// Canned eval-harness result for mock mode. Scores track the verdict so the
+// panel looks plausible across PASS / PARTIAL / REJECT.
+function mockEvaluation(body) {
+  const verdict = body.verdict || 'PASS'
+  const grounded = verdict === 'PASS' ? 5 : verdict === 'PARTIAL' ? 3 : 1
+  return {
+    judge: {
+      relevance: 5,
+      correctness: grounded,
+      completeness: grounded,
+      faithfulness: verdict === 'REJECT' ? 2 : 4,
+      rationale:
+        'Answer is on-topic and largely supported by the retrieved ICAR sources; '
+        + 'no fabricated quantities detected.',
+    },
+    reference_available: false,
+    retrieval: {
+      count: 3,
+      chunks: [
+        { chunk_id: 'icar_chunk_001', similarity: 0.71, text: 'Rice (paddy) needs ~1500 mm rainfall; a kharif (monsoon) crop.' },
+        { chunk_id: 'icar_chunk_042', similarity: 0.55, text: 'Apply nitrogen in split doses through the tillering stage.' },
+        { chunk_id: 'icar_chunk_017', similarity: 0.48, text: 'Irrigate at critical growth stages when rainfall is deficient.' },
+      ],
+    },
+    grounding: { verdict, citations: body.citations || {} },
+  }
+}
 
 // Canned responses cycling through all three verdict paths (PASS → PARTIAL → REJECT)
 const MOCK_RESPONSES = [
@@ -78,6 +107,12 @@ export const handlers = [
     const response = MOCK_RESPONSES[mockCallCount % MOCK_RESPONSES.length]
     mockCallCount++
     return HttpResponse.json(response)
+  }),
+
+  // Eval harness: judge a live answer (agent service, port 8001).
+  http.post(`${AGENT_BASE}/api/evaluate`, async ({ request }) => {
+    const body = await request.json()
+    return HttpResponse.json(mockEvaluation(body))
   }),
 ]
 
