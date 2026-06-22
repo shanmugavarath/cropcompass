@@ -1,4 +1,5 @@
 import RecommendationCard from './RecommendationCard'
+import Markdown from './Markdown'
 
 const FLORES_TO_BCP47 = {
   hin_Deva: 'hi', mar_Deva: 'mr',
@@ -42,12 +43,13 @@ export default function MessageBubble({ message }) {
     )
   }
 
-  // In-progress streaming bubble — text grows token by token
+  // In-progress streaming bubble — text grows token by token, rendered as
+  // markdown so the farmer never sees raw ** / # syntax mid-stream.
   if (message.type === 'streaming') {
     return (
       <div className="message-row message-row--assistant">
         <div className="message-bubble message-bubble--assistant message-bubble--streaming">
-          <span>{message.text}</span>
+          <Markdown text={message.text} />
           <span className="streaming-cursor" aria-hidden="true" />
         </div>
       </div>
