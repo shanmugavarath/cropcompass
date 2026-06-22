@@ -30,7 +30,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Bake the embedding model into the image (downloaded ONCE, at build time).
 # Must match CHROMA_EMBED_MODEL / the version the store was embedded with.
 ARG EMBED_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${EMBED_MODEL}')"
+# RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${EMBED_MODEL}')"
 
 # Everything is local now -- never reach out to HF at runtime.
 ENV HF_HUB_OFFLINE=1 \

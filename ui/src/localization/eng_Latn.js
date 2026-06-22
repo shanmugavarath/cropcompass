@@ -61,6 +61,18 @@ const eng_Latn = {
   toolFetchAdvisory: 'Checking weather forecast…',
   toolQueryKb:       'Searching crop knowledge base…',
   toolTranslate:     'Translating response…',
+
+  micLabel:      'Speak your question',
+  listenLabel:   'Listen',
+  stopLabel:     'Stop',
+  autoReadLabel: 'Auto-read answers',
+
+  suggestions: [
+    'When should I sow my crop?',
+    'How much water does my crop need?',
+    'What fertiliser should I apply now?',
+    'What does the weather forecast say?',
+  ],
 }
 
 export default eng_Latn

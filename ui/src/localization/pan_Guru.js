@@ -61,6 +61,18 @@ const pan_Guru = {
   toolFetchAdvisory: 'ਮੌਸਮ ਅਨੁਮਾਨ ਜਾਂਚ ਰਹੇ ਹਾਂ…',
   toolQueryKb:       'ਫ਼ਸਲ ਗਿਆਨ ਅਧਾਰ ਵਿੱਚ ਖੋਜ ਰਹੇ ਹਾਂ…',
   toolTranslate:     'ਜਵਾਬ ਦਾ ਅਨੁਵਾਦ ਕਰ ਰਹੇ ਹਾਂ…',
+
+  micLabel:      'ਆਪਣਾ ਸਵਾਲ ਬੋਲੋ',
+  listenLabel:   'ਸੁਣੋ',
+  stopLabel:     'ਰੋਕੋ',
+  autoReadLabel: 'ਜਵਾਬ ਆਪਣੇ ਆਪ ਪੜ੍ਹੋ',
+
+  suggestions: [
+    'ਮੈਨੂੰ ਆਪਣੀ ਫ਼ਸਲ ਕਦੋਂ ਬੀਜਣੀ ਚਾਹੀਦੀ?',
+    'ਮੇਰੀ ਫ਼ਸਲ ਨੂੰ ਕਿੰਨਾ ਪਾਣੀ ਚਾਹੀਦਾ ਹੈ?',
+    'ਹੁਣ ਕਿਹੜੀ ਖਾਦ ਪਾਉਣੀ ਚਾਹੀਦੀ?',
+    'ਮੌਸਮ ਦਾ ਅਨੁਮਾਨ ਕੀ ਹੈ?',
+  ],
 }
 
 export default pan_Guru

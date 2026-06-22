@@ -61,6 +61,18 @@ const mar_Deva = {
   toolFetchAdvisory: 'हवामान अंदाज तपासत आहोत…',
   toolQueryKb:       'पीक ज्ञानकोशात शोधत आहोत…',
   toolTranslate:     'उत्तराचे भाषांतर करत आहोत…',
+
+  micLabel:      'तुमचा प्रश्न बोला',
+  listenLabel:   'ऐका',
+  stopLabel:     'थांबा',
+  autoReadLabel: 'उत्तरे स्वयंचलितपणे वाचा',
+
+  suggestions: [
+    'माझी पीक कधी पेरावी?',
+    'माझ्या पिकाला किती पाणी लागते?',
+    'आता कोणते खत द्यावे?',
+    'हवामानाचा अंदाज काय आहे?',
+  ],
 }
 
 export default mar_Deva

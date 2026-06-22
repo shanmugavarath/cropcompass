@@ -61,6 +61,18 @@ const hin_Deva = {
   toolFetchAdvisory: 'मौसम पूर्वानुमान देखा जा रहा है…',
   toolQueryKb:       'फसल ज्ञान आधार में खोज हो रही है…',
   toolTranslate:     'उत्तर का अनुवाद हो रहा है…',
+
+  micLabel:      'अपना सवाल बोलें',
+  listenLabel:   'सुनें',
+  stopLabel:     'रोकें',
+  autoReadLabel: 'उत्तर स्वतः पढ़ें',
+
+  suggestions: [
+    'मुझे अपनी फसल कब बोनी चाहिए?',
+    'मेरी फसल को कितने पानी की जरूरत है?',
+    'अभी कौन सा खाद डालना चाहिए?',
+    'मौसम का पूर्वानुमान क्या है?',
+  ],
 }
 
 export default hin_Deva

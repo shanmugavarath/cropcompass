@@ -2,6 +2,8 @@ import { useState, useId } from 'react'
 import LanguageTag from './LanguageTag'
 import EvalPanel from './EvalPanel'
 import Markdown from './Markdown'
+import { useSpeech } from '../hooks/useSpeech'
+import STRINGS from '../localization/index'
 
 const SAFE_FALLBACK =
   'Please consult your local Krishi Vigyan Kendra for current advice.'
@@ -45,6 +47,7 @@ export default function RecommendationCard({ response, question, farmerId }) {
   // useId gives a unique ID per card instance — safe for aria-controls when
   // multiple RecommendationCards appear in the same message list
   const citationsId = useId()
+  const { speaking, speak, stop } = useSpeech()
 
   const { text, lang, verdict, citations } = response
   const bcp47      = FLORES_TO_BCP47[lang]     ?? 'en'
@@ -53,6 +56,15 @@ export default function RecommendationCard({ response, question, farmerId }) {
   const hasCitations    = citationEntries.length > 0
 
   const cardClass = verdict === 'PARTIAL' ? 'rec-card rec-card--partial' : 'rec-card'
+
+  const strings     = STRINGS[lang] ?? STRINGS.eng_Latn
+  const listenLabel = strings.listenLabel ?? 'Listen'
+  const stopLabel   = strings.stopLabel   ?? 'Stop'
+
+  function handleListen() {
+    if (speaking) stop()
+    else speak(text, lang)
+  }
 
   return (
     <div className={cardClass}>
@@ -67,6 +79,28 @@ export default function RecommendationCard({ response, question, farmerId }) {
       <div className="rec-card__footer">
         <VerdictBadge verdict={verdict} />
         <LanguageTag lang={lang} />
+
+        {/* Listen button — always shown for non-REJECT responses */}
+        {verdict !== 'REJECT' && (
+          <button
+            className={`listen-btn${speaking ? ' listen-btn--active' : ''}`}
+            onClick={handleListen}
+            aria-label={speaking ? stopLabel : listenLabel}
+            aria-pressed={speaking}
+            type="button"
+          >
+            {speaking ? (
+              <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" aria-hidden="true">
+                <path d="M6 6h12v12H6z"/>
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" aria-hidden="true">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              </svg>
+            )}
+            <span>{speaking ? stopLabel : listenLabel}</span>
+          </button>
+        )}
 
         {verdict !== 'REJECT' && hasCitations && (
           <button
