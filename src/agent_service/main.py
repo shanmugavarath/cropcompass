@@ -8,6 +8,7 @@ import structlog
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 from .agent.runner import AgentRunner
 from .config import get_settings
@@ -19,6 +20,16 @@ from .transports.sse import make_router as make_sse_router
 from .transports.websocket import make_router as make_ws_router
 
 log = structlog.get_logger(__name__)
+
+
+class EvaluateRequest(BaseModel):
+    """Payload for POST /api/evaluate — evaluate one live chat answer."""
+
+    message: str = Field(min_length=1, max_length=500)   # the farmer's question
+    answer: str                                          # the agent's answer text
+    farmer_id: str | None = None                         # for retrieval-crop parity
+    verdict: str | None = None                           # verifier verdict from the chat
+    citations: dict[str, str] = Field(default_factory=dict)
 
 
 def _configure_logging(level: str) -> None:
@@ -126,6 +137,50 @@ def create_app(runner: AgentRunner | None = None) -> FastAPI:
     @app.post("/api/chat", response_model=AgentResponse)
     async def chat(req: ChatRequest) -> AgentResponse:
         return await runner.run(req.farmer_id, req.message, req.session_id)
+
+    @app.post("/api/evaluate")
+    async def evaluate(req: EvaluateRequest) -> dict:
+        """Run the eval harness's LLM-as-judge on a live chat answer.
+
+        Genuinely reuses evals/ (Judge + judge_system.md prompt + the same
+        retrieval call the runner makes). Relevance and faithfulness are
+        meaningful live; correctness/completeness are returned but flagged
+        reference_available=false (no golden reference exists for a live query).
+        """
+        try:
+            from evals.judge import Judge
+            from evals.schema import EvalCase, Expected, Trace
+            from evals.trace import fetch_retrieved_chunks
+        except Exception as exc:  # harness not bundled
+            return {"error": f"eval harness unavailable: {exc}"}
+
+        # Resolve crop the same way the runner does, so retrieval matches the answer.
+        crop = ""
+        if req.farmer_id:
+            profile_tool = runner.registry.get("get_farmer_profile")
+            if profile_tool is not None:
+                profile = await profile_tool(farmer_id=req.farmer_id)
+                if isinstance(profile, dict) and "error" not in profile:
+                    crop = profile.get("crop_variety", "") or ""
+
+        retrieved = await fetch_retrieved_chunks(runner.registry, req.message, crop, top_k=5)
+        case = EvalCase(id="live", message=req.message, expected=Expected())
+        trace = Trace(
+            case_id="live", answer_text=req.answer, retrieved=retrieved, final_verdict=req.verdict
+        )
+        score = await Judge(llm=runner._llm).score(case, trace)
+        return {
+            "judge": score.model_dump(),
+            "reference_available": False,
+            "retrieval": {
+                "count": len(retrieved),
+                "chunks": [
+                    {"chunk_id": c.chunk_id, "similarity": round(c.similarity, 3), "text": c.text[:240]}
+                    for c in retrieved
+                ],
+            },
+            "grounding": {"verdict": req.verdict, "citations": req.citations},
+        }
 
     @app.delete("/api/session/{session_id}")
     async def clear_session(session_id: str) -> dict[str, str]:
