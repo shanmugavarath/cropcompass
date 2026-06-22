@@ -34,12 +34,18 @@ const SOIL_KEYS = ['soilClay', 'soilLoam', 'soilSandy', 'soilClayLoam', 'soilSil
 const STAGE_VALUES = ['sowing', 'vegetative', 'flowering', 'maturity']
 const STAGE_KEYS   = ['stageSowing', 'stageVegetative', 'stageFlowering', 'stageMaturity']
 
-const COMMON_CROPS = [
-  'Rice (Basmati)', 'Rice (IR-36)', 'Wheat (HD-2967)', 'Wheat (GW-322)',
-  'Soybean (JS-335)', 'Cotton (Bt)', 'Sugarcane', 'Maize (HQPM-1)',
-  'Groundnut (TAG-24)', 'Tomato', 'Onion', 'Potato', 'Turmeric',
-  'Chilli', 'Bajra (HHB-67)', 'Jowar', 'Tur (ICPL-87)', 'Gram (JG-11)',
-  'Banana', 'Mango', 'Grapes',
+// MUST match the backend CropVariety enum (app/schemas/farmer.py) + the DB
+// CheckConstraint exactly — any other value is rejected with a 422. Use a
+// constrained <select> (not free text) so an invalid crop can't be submitted.
+const CROP_OPTIONS = [
+  { value: 'rice', label: 'Rice' },
+  { value: 'wheat', label: 'Wheat' },
+  { value: 'maize', label: 'Maize' },
+  { value: 'cotton', label: 'Cotton' },
+  { value: 'soybean', label: 'Soybean' },
+  { value: 'sugarcane', label: 'Sugarcane' },
+  { value: 'pulses', label: 'Pulses' },
+  { value: 'vegetables', label: 'Vegetables' },
 ]
 
 const LANG_OPTIONS = [
@@ -474,20 +480,18 @@ function StepFarm({ formData, errors, setField, selectedLang, t, serverError, su
         </div>
 
         <div className="field">
-          <label htmlFor="crop-input">{t.cropLabel}</label>
-          <input
-            id="crop-input"
-            type="text"
-            list="crop-list"
-            placeholder={t.cropPlaceholder}
+          <label htmlFor="crop-select">{t.cropLabel}</label>
+          <select
+            id="crop-select"
             value={formData.crop_variety}
             onChange={e => setField('crop_variety', e.target.value)}
             aria-invalid={!!errors.crop_variety}
-            autoComplete="off"
-          />
-          <datalist id="crop-list">
-            {COMMON_CROPS.map(c => <option key={c} value={c} />)}
-          </datalist>
+          >
+            <option value="" disabled>{t.cropPlaceholder}</option>
+            {CROP_OPTIONS.map(c => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
           {errors.crop_variety && <span className="field-error" role="alert">{errors.crop_variety}</span>}
         </div>
 

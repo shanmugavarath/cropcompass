@@ -89,7 +89,7 @@ export const handlers = [
       farmer_id: params.farmerId,
       district: 'Pune',
       soil_type: 'clay_loam',
-      crop_variety: 'Soybean JS-335',
+      crop_variety: 'soybean',
       growth_stage: 'sowing',
       lang_pref: 'hin_Deva',
     })
