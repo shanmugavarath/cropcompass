@@ -3,9 +3,6 @@ import LanguageTag from './LanguageTag'
 import EvalPanel from './EvalPanel'
 import Markdown from './Markdown'
 
-const SAFE_FALLBACK =
-  'Please consult your local Krishi Vigyan Kendra for current advice.'
-
 const FLORES_TO_BCP47 = {
   hin_Deva: 'hi',
   mar_Deva: 'mr',
@@ -56,19 +53,13 @@ export default function RecommendationCard({ response, question, farmerId }) {
 
   return (
     <div className={cardClass}>
-      {verdict === 'REJECT' ? (
-        <p className="safe-fallback" role="alert">
-          {SAFE_FALLBACK}
-        </p>
-      ) : (
-        <Markdown text={text} fontClass={fontClass} lang={bcp47} />
-      )}
+      <Markdown text={text} fontClass={fontClass} lang={bcp47} />
 
       <div className="rec-card__footer">
         <VerdictBadge verdict={verdict} />
         <LanguageTag lang={lang} />
 
-        {verdict !== 'REJECT' && hasCitations && (
+        {hasCitations && (
           <button
             className="citations-toggle"
             onClick={() => setShowCitations(s => !s)}
@@ -93,7 +84,7 @@ export default function RecommendationCard({ response, question, farmerId }) {
       )}
 
       {/* Eval harness: "How this was evaluated" — judges THIS answer live */}
-      {verdict !== 'REJECT' && question && (
+      {question && (
         <EvalPanel
           question={question}
           answer={text}

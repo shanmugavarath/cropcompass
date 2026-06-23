@@ -17,6 +17,11 @@ SAFE_FALLBACK_MESSAGE = (
 )
 
 PARTIAL_DISCLAIMER = (
-    "\n\n Some parts of this advice could not be verified against official "
-    "sources and have been removed. Please confirm with your local KVK."
+    "\n\n⚠️ Warning: Some parts of this advice could not be fully verified "
+    "against official sources. Please confirm with your local KVK before acting."
+)
+
+REJECT_DISCLAIMER = (
+    "\n\n⚠️ Warning: This advice could not be verified against official sources. "
+    "Please confirm with your local Krishi Vigyan Kendra before acting."
 )

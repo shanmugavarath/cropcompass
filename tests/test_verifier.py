@@ -16,7 +16,7 @@ def test_pass_returns_text_as_is():
     assert citations == {"Sow now.": "c1"}
 
 
-def test_partial_strips_unsupported_and_appends_disclaimer():
+def test_partial_keeps_full_advice_and_appends_warning():
     text = "Sow now. Add 200 kg urea per hectare."
     out, verdict, _ = apply_verdict(
         text,
@@ -27,12 +27,12 @@ def test_partial_strips_unsupported_and_appends_disclaimer():
         },
     )
     assert "Sow now." in out
-    assert "urea" not in out
-    assert "could not be verified" in out
+    assert "urea" in out
+    assert "could not be fully verified" in out
     assert verdict == "PARTIAL"
 
 
-def test_partial_collapses_to_reject_when_empty():
+def test_partial_with_all_unsupported_still_shows_advice_with_warning():
     text = "Add 200 kg urea per hectare."
     out, verdict, citations = apply_verdict(
         text,
@@ -42,16 +42,18 @@ def test_partial_collapses_to_reject_when_empty():
             "supporting_citations": {},
         },
     )
-    assert "Krishi Vigyan Kendra" in out
-    assert verdict == "REJECT"
+    assert "urea" in out
+    assert "could not be fully verified" in out
+    assert verdict == "PARTIAL"
     assert citations == {}
 
 
-def test_reject_returns_safe_fallback():
+def test_reject_shows_advice_with_warning():
     out, verdict, citations = apply_verdict(
         "anything", {"verdict": "REJECT", "unsupported_claims": [], "supporting_citations": {}}
     )
-    assert "Krishi Vigyan Kendra" in out
+    assert "anything" in out
+    assert "could not be verified" in out
     assert verdict == "REJECT"
     assert citations == {}
 

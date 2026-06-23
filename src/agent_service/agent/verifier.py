@@ -5,7 +5,7 @@ import re
 from typing import Any
 
 from ..llm.base import LLMClient
-from ..prompts import PARTIAL_DISCLAIMER, SAFE_FALLBACK_MESSAGE, VERIFIER_SYSTEM
+from ..prompts import PARTIAL_DISCLAIMER, REJECT_DISCLAIMER, SAFE_FALLBACK_MESSAGE, VERIFIER_SYSTEM
 from ..schemas import Verdict
 
 
@@ -57,12 +57,9 @@ def apply_verdict(
     unsupported: list[str] = verdict_payload.get("unsupported_claims", []) or []
 
     if verdict == "REJECT":
-        return SAFE_FALLBACK_MESSAGE, "REJECT", {}
+        return recommendation + REJECT_DISCLAIMER, "REJECT", citations
     if verdict == "PARTIAL":
-        stripped = strip_unsupported(recommendation, unsupported)
-        if not stripped.strip():
-            return SAFE_FALLBACK_MESSAGE, "REJECT", {}
-        return stripped + PARTIAL_DISCLAIMER, "PARTIAL", citations
+        return recommendation + PARTIAL_DISCLAIMER, "PARTIAL", citations
     return recommendation, "PASS", citations
 
 

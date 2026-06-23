@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { evaluateAnswer } from '../api/evaluate'
 
 const VERDICT_EXPLAIN = {
-  PASS: 'Every claim was grounded in a retrieved source.',
-  PARTIAL: 'Some claims were grounded; unverified ones were removed before showing the advice.',
-  REJECT: 'No claims could be grounded, so a safe fallback was shown instead.',
+  PASS:    'Every claim was grounded in a retrieved source.',
+  PARTIAL: 'Some claims were grounded; unverified ones are shown with a warning.',
+  REJECT:  'No claims could be grounded; the full advice is shown with a warning.',
 }
 
 function ScoreBar({ label, value, max = 5, hint }) {
