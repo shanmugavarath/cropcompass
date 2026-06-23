@@ -39,16 +39,20 @@ const pan_Guru = {
   submitBtn:       'ਸਲਾਹ ਸ਼ੁਰੂ ਕਰੋ →',
   submittingBtn:   'ਤਿਆਰੀ ਹੋ ਰਹੀ ਹੈ…',
 
-  soilClay:     { label: 'ਚਿਕਣੀ ਮਿੱਟੀ', desc: 'ਭਾਰੀ, ਪਾਣੀ ਰੱਖਣ ਵਾਲੀ' },
-  soilLoam:     { label: 'ਦੋਮਟ',          desc: 'ਸੰਤੁਲਿਤ, ਉਪਜਾਊ' },
+  soilClay:     { label: 'ਚਿਕਣੀ ਮਿੱਟੀ',  desc: 'ਭਾਰੀ, ਪਾਣੀ ਰੱਖਣ ਵਾਲੀ' },
+  soilLoamy:    { label: 'ਦੋਮਟ ਮਿੱਟੀ',   desc: 'ਸੰਤੁਲਿਤ, ਉਪਜਾਊ' },
   soilSandy:    { label: 'ਰੇਤਲੀ',         desc: 'ਹਲਕੀ, ਤੇਜ਼ ਨਿਕਾਸੀ' },
-  soilClayLoam: { label: 'ਚਿਕਣੀ ਦੋਮਟ',   desc: 'ਦਰਮਿਆਨੀ ਭਾਰੀ' },
-  soilSiltLoam: { label: 'ਗਾਦ ਦੋਮਟ',     desc: 'ਨਮੀ ਰੱਖਣ ਵਾਲੀ' },
+  soilBlack:    { label: 'ਕਾਲੀ ਮਿੱਟੀ',   desc: 'ਖਣਿਜ ਭਰਪੂਰ, ਨਮੀ ਰੱਖਣ ਵਾਲੀ' },
+  soilRed:      { label: 'ਲਾਲ ਮਿੱਟੀ',    desc: 'ਲੋਹੇ ਨਾਲ ਭਰਪੂਰ, ਚੰਗੀ ਨਿਕਾਸੀ' },
+  soilAlluvial: { label: 'ਕਾਂਪ ਮਿੱਟੀ',   desc: 'ਦਰਿਆਈ, ਬਹੁਤ ਉਪਜਾਊ' },
+  soilLaterite: { label: 'ਲੈਟੇਰਾਈਟ',     desc: 'ਕਠੋਰ, ਲੋਹੇ ਦੇ ਆਕਸਾਈਡ ਵਾਲੀ' },
 
-  stageSowing:     { label: 'ਬਿਜਾਈ',     desc: 'ਬੀਜ ਬੀਜਣਾ' },
-  stageVegetative: { label: 'ਬਨਸਪਤੀ',   desc: 'ਪੱਤਾ ਅਤੇ ਤਣਾ ਵਾਧਾ' },
-  stageFlowering:  { label: 'ਫੁੱਲ ਆਉਣਾ',desc: 'ਫੁੱਲ ਅਤੇ ਪਰਾਗਣ' },
-  stageMaturity:   { label: 'ਪੱਕਣਾ',    desc: 'ਵਾਢੀ ਲਈ ਤਿਆਰ' },
+  stageSowing:       { label: 'ਬਿਜਾਈ',      desc: 'ਬੀਜ ਬੀਜਣਾ' },
+  stageGermination:  { label: 'ਉਗਣਾ',       desc: 'ਪੌਦ ਉੱਗਣਾ' },
+  stageVegetative:   { label: 'ਬਨਸਪਤੀ',    desc: 'ਪੱਤਾ ਅਤੇ ਤਣਾ ਵਾਧਾ' },
+  stageFlowering:    { label: 'ਫੁੱਲ ਆਉਣਾ', desc: 'ਫੁੱਲ ਅਤੇ ਪਰਾਗਣ' },
+  stageFruiting:     { label: 'ਫਲਣਾ',       desc: 'ਫਲ ਅਤੇ ਦਾਣੇ ਭਰਨਾ' },
+  stageHarvesting:   { label: 'ਵਾਢੀ',       desc: 'ਫ਼ਸਲ ਇਕੱਠੀ ਕਰਨਾ' },
 
   greeting: 'ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ CropCompass ਹਾਂ — ਤੁਹਾਡਾ ਫ਼ਸਲ ਸਲਾਹਕਾਰ।\nਆਪਣੀ ਫ਼ਸਲ ਬਾਰੇ ਕੋਈ ਵੀ ਸਵਾਲ ਪੁੱਛੋ।',
 

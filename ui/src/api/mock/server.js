@@ -88,7 +88,7 @@ export const handlers = [
     HttpResponse.json({
       farmer_id: params.farmerId,
       district: 'Pune',
-      soil_type: 'clay_loam',
+      soil_type: 'clay',
       crop_variety: 'soybean',
       growth_stage: 'sowing',
       lang_pref: 'hin_Deva',

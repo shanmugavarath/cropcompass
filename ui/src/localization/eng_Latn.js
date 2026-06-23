@@ -40,15 +40,19 @@ const eng_Latn = {
   submittingBtn:   'Setting up…',
 
   soilClay:     { label: 'Clay',      desc: 'Heavy, water-retaining' },
-  soilLoam:     { label: 'Loam',      desc: 'Balanced, fertile' },
+  soilLoamy:    { label: 'Loamy',     desc: 'Balanced, fertile' },
   soilSandy:    { label: 'Sandy',     desc: 'Light, fast-draining' },
-  soilClayLoam: { label: 'Clay Loam', desc: 'Moderately heavy' },
-  soilSiltLoam: { label: 'Silt Loam', desc: 'Moisture-retaining' },
+  soilBlack:    { label: 'Black',     desc: 'Mineral-rich, moisture-retaining' },
+  soilRed:      { label: 'Red',       desc: 'Iron-rich, well-drained' },
+  soilAlluvial: { label: 'Alluvial',  desc: 'River-deposited, very fertile' },
+  soilLaterite: { label: 'Laterite',  desc: 'Hard, iron-oxide rich' },
 
-  stageSowing:     { label: 'Sowing',     desc: 'Seed planting' },
-  stageVegetative: { label: 'Vegetative', desc: 'Leaf & stem growth' },
-  stageFlowering:  { label: 'Flowering',  desc: 'Bloom & pollination' },
-  stageMaturity:   { label: 'Maturity',   desc: 'Harvest ready' },
+  stageSowing:       { label: 'Sowing',      desc: 'Seed planting' },
+  stageGermination:  { label: 'Germination', desc: 'Seedling emergence' },
+  stageVegetative:   { label: 'Vegetative',  desc: 'Leaf & stem growth' },
+  stageFlowering:    { label: 'Flowering',   desc: 'Bloom & pollination' },
+  stageFruiting:     { label: 'Fruiting',    desc: 'Fruit & grain filling' },
+  stageHarvesting:   { label: 'Harvesting',  desc: 'Crop collection' },
 
   greeting: 'Hello! I am CropCompass — your crop advisory assistant.\nAsk any question about your crop.',
 

@@ -38,16 +38,20 @@ const kan_Knda = {
   submitBtn:       'ಸಲಹೆ ಪ್ರಾರಂಭಿಸಿ →',
   submittingBtn:   'ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ…',
 
-  soilClay:     { label: 'ಜೇಡಿ ಮಣ್ಣು',     desc: 'ಭಾರ, ನೀರು ಹಿಡಿದಿಡುವ' },
-  soilLoam:     { label: 'ಲೋಮ್',           desc: 'ಸಮತೋಲಿತ, ಫಲವತ್ತಾದ' },
+  soilClay:     { label: 'ಜೇಡಿ ಮಣ್ಣು',      desc: 'ಭಾರ, ನೀರು ಹಿಡಿದಿಡುವ' },
+  soilLoamy:    { label: 'ಲೋಮಿ ಮಣ್ಣು',     desc: 'ಸಮತೋಲಿತ, ಫಲವತ್ತಾದ' },
   soilSandy:    { label: 'ಮರಳು ಮಣ್ಣು',    desc: 'ಹಗುರ, ತ್ವರಿತ ಒಳಚರಂಡಿ' },
-  soilClayLoam: { label: 'ಜೇಡಿ ಲೋಮ್',     desc: 'ಮಧ್ಯಮ ಭಾರ' },
-  soilSiltLoam: { label: 'ಹೂಳು ಲೋಮ್',    desc: 'ತೇವಾಂಶ ಉಳಿಸಿಕೊಳ್ಳುವ' },
+  soilBlack:    { label: 'ಕಪ್ಪು ಮಣ್ಣು',    desc: 'ಖನಿಜ ಸಮೃದ್ಧ, ತೇವಾಂಶ ಉಳಿಸಿಕೊಳ್ಳುವ' },
+  soilRed:      { label: 'ಕೆಂಪು ಮಣ್ಣು',   desc: 'ಕಬ್ಬಿಣ ಅಧಿಕ, ಉತ್ತಮ ಒಳಚರಂಡಿ' },
+  soilAlluvial: { label: 'ಮೆಕ್ಕಲು ಮಣ್ಣು', desc: 'ನದಿ-ನಿಕ್ಷೇಪ, ಬಹಳ ಫಲವತ್ತಾದ' },
+  soilLaterite: { label: 'ಲ್ಯಾಟರೈಟ್',     desc: 'ಗಟ್ಟಿ, ಕಬ್ಬಿಣ ಆಕ್ಸೈಡ್ ಸಮೃದ್ಧ' },
 
-  stageSowing:     { label: 'ಬಿತ್ತನೆ',      desc: 'ಬೀಜ ನೆಡುವಿಕೆ' },
-  stageVegetative: { label: 'ಸಸ್ಯ ಹಂತ',    desc: 'ಎಲೆ & ಕಾಂಡ ಬೆಳವಣಿಗೆ' },
-  stageFlowering:  { label: 'ಹೂಬಿಡುವ ಹಂತ', desc: 'ಹೂವು & ಪರಾಗಸ್ಪರ್ಶ' },
-  stageMaturity:   { label: 'ಪರಿಪಕ್ವತೆ',   desc: 'ಕೊಯ್ಲಿಗೆ ಸಿದ್ಧ' },
+  stageSowing:       { label: 'ಬಿತ್ತನೆ',        desc: 'ಬೀಜ ನೆಡುವಿಕೆ' },
+  stageGermination:  { label: 'ಮೊಳಕೆ ಹಂತ',   desc: 'ಸಸಿ ಮೊಳೆಯುವಿಕೆ' },
+  stageVegetative:   { label: 'ಸಸ್ಯ ಹಂತ',    desc: 'ಎಲೆ & ಕಾಂಡ ಬೆಳವಣಿಗೆ' },
+  stageFlowering:    { label: 'ಹೂಬಿಡುವ ಹಂತ', desc: 'ಹೂವು & ಪರಾಗಸ್ಪರ್ಶ' },
+  stageFruiting:     { label: 'ಫಲ ಹಂತ',      desc: 'ಹಣ್ಣು & ಕಾಳು ತುಂಬುವಿಕೆ' },
+  stageHarvesting:   { label: 'ಕೊಯ್ಲು',      desc: 'ಬೆಳೆ ಸಂಗ್ರಹ' },
 
   greeting: 'ನಮಸ್ಕಾರ! ನಾನು CropCompass — ನಿಮ್ಮ ಬೆಳೆ ಸಲಹೆಗಾರ.\nನಿಮ್ಮ ಬೆಳೆ ಕುರಿತು ಯಾವುದೇ ಪ್ರಶ್ನೆ ಕೇಳಿ.',
 

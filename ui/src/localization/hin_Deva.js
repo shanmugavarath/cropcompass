@@ -39,16 +39,20 @@ const hin_Deva = {
   submitBtn:       'सलाह शुरू करें →',
   submittingBtn:   'तैयारी हो रही है…',
 
-  soilClay:     { label: 'चिकनी',       desc: 'भारी, जल-धारण करने वाली' },
-  soilLoam:     { label: 'दोमट',        desc: 'संतुलित, उपजाऊ' },
+  soilClay:     { label: 'चिकनी',      desc: 'भारी, जल-धारण करने वाली' },
+  soilLoamy:    { label: 'दोमट',        desc: 'संतुलित, उपजाऊ' },
   soilSandy:    { label: 'बलुई',        desc: 'हल्की, तेज़ जल-निकासी' },
-  soilClayLoam: { label: 'चिकनी दोमट', desc: 'मध्यम भारी' },
-  soilSiltLoam: { label: 'गाद दोमट',   desc: 'नमी-धारण करने वाली' },
+  soilBlack:    { label: 'काली',        desc: 'खनिज समृद्ध, नमी धारक' },
+  soilRed:      { label: 'लाल',         desc: 'लौह-युक्त, अच्छी जल-निकासी' },
+  soilAlluvial: { label: 'जलोढ़',       desc: 'नदी-जनित, अत्यंत उपजाऊ' },
+  soilLaterite: { label: 'लैटेराइट',   desc: 'कठोर, लौह-ऑक्साइड युक्त' },
 
-  stageSowing:     { label: 'बुवाई',      desc: 'बीज बोना' },
-  stageVegetative: { label: 'वानस्पतिक', desc: 'पत्ती और तना वृद्धि' },
-  stageFlowering:  { label: 'फूल आना',   desc: 'फूल और परागण' },
-  stageMaturity:   { label: 'परिपक्वता', desc: 'कटाई के लिए तैयार' },
+  stageSowing:       { label: 'बुवाई',        desc: 'बीज बोना' },
+  stageGermination:  { label: 'अंकुरण',       desc: 'पौध उगना' },
+  stageVegetative:   { label: 'वानस्पतिक',   desc: 'पत्ती और तना वृद्धि' },
+  stageFlowering:    { label: 'फूल आना',     desc: 'फूल और परागण' },
+  stageFruiting:     { label: 'फलन',         desc: 'फल और दाना भराव' },
+  stageHarvesting:   { label: 'कटाई',        desc: 'फसल संग्रह' },
 
   greeting: 'नमस्ते! मैं CropCompass हूँ — आपका कृषि सलाहकार।\nअपनी फसल के बारे में कोई भी सवाल पूछें।',
 

@@ -39,16 +39,20 @@ const tel_Telu = {
   submitBtn:       'సలహా ప్రారంభించు →',
   submittingBtn:   'సిద్ధమవుతోంది…',
 
-  soilClay:     { label: 'బంకమట్టి',   desc: 'భారంగా, నీరు నిలుపుకొనే' },
-  soilLoam:     { label: 'లోమ్',        desc: 'సమతుల్య, సారవంతమైన' },
+  soilClay:     { label: 'బంకమట్టి',    desc: 'భారంగా, నీరు నిలుపుకొనే' },
+  soilLoamy:    { label: 'లోమీ నేల',    desc: 'సమతుల్య, సారవంతమైన' },
   soilSandy:    { label: 'ఇసుక నేల',   desc: 'తేలికపాటి, వేగంగా నీరు వదిలే' },
-  soilClayLoam: { label: 'క్లే లోమ్',  desc: 'మధ్యస్థ భారం' },
-  soilSiltLoam: { label: 'సిల్ట్ లోమ్',desc: 'తేమ నిలుపుకొనే' },
+  soilBlack:    { label: 'నల్ల నేల',    desc: 'ఖనిజ సమృద్ధి, తేమ నిలుపుకొనే' },
+  soilRed:      { label: 'ఎర్ర నేల',    desc: 'ఇనుము అధికం, నీరు వడపోసే' },
+  soilAlluvial: { label: 'ఒండ్రు నేల',  desc: 'నదీ నిక్షేపం, చాలా సారవంతమైన' },
+  soilLaterite: { label: 'లేటరైట్',     desc: 'గట్టి, ఇనుప ఆక్సైడ్ అధికం' },
 
-  stageSowing:     { label: 'విత్తడం',    desc: 'విత్తనాలు నాటడం' },
-  stageVegetative: { label: 'వృక్షజ దశ', desc: 'ఆకు & కాండం పెరుగుదల' },
-  stageFlowering:  { label: 'పూత దశ',    desc: 'పూలు & పరాగ సంపర్కం' },
-  stageMaturity:   { label: 'పరిపక్వత',  desc: 'పంటకోత సిద్ధంగా' },
+  stageSowing:       { label: 'విత్తడం',      desc: 'విత్తనాలు నాటడం' },
+  stageGermination:  { label: 'మొలక దశ',    desc: 'మొలకలు వేయడం' },
+  stageVegetative:   { label: 'వృక్షజ దశ',  desc: 'ఆకు & కాండం పెరుగుదల' },
+  stageFlowering:    { label: 'పూత దశ',     desc: 'పూలు & పరాగ సంపర్కం' },
+  stageFruiting:     { label: 'ఫలదశ',       desc: 'పండు & గింజ నింపడం' },
+  stageHarvesting:   { label: 'పంటకోత',     desc: 'పంట సేకరణ' },
 
   greeting: 'నమస్కారం! నేను CropCompass — మీ పంట సలహాదారు.\nమీ పంట గురించి ఏదైనా ప్రశ్న అడగండి.',
 

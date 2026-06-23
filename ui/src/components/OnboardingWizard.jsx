@@ -24,15 +24,17 @@ const STATE_DISTRICTS = {
 // value + icon only — labels come from the localization strings
 const SOIL_VALUES = [
   { value: 'clay',      icon: '🟫' },
-  { value: 'loam',      icon: '🌱' },
+  { value: 'loamy',     icon: '🌱' },
   { value: 'sandy',     icon: '🏜️'  },
-  { value: 'clay_loam', icon: '🪨' },
-  { value: 'silt_loam', icon: '💧' },
+  { value: 'black',     icon: '⚫' },
+  { value: 'red',       icon: '🔴' },
+  { value: 'alluvial',  icon: '💧' },
+  { value: 'laterite',  icon: '🪨' },
 ]
-const SOIL_KEYS = ['soilClay', 'soilLoam', 'soilSandy', 'soilClayLoam', 'soilSiltLoam']
+const SOIL_KEYS = ['soilClay', 'soilLoamy', 'soilSandy', 'soilBlack', 'soilRed', 'soilAlluvial', 'soilLaterite']
 
-const STAGE_VALUES = ['sowing', 'vegetative', 'flowering', 'maturity']
-const STAGE_KEYS   = ['stageSowing', 'stageVegetative', 'stageFlowering', 'stageMaturity']
+const STAGE_VALUES = ['sowing', 'germination', 'vegetative', 'flowering', 'fruiting', 'harvesting']
+const STAGE_KEYS   = ['stageSowing', 'stageGermination', 'stageVegetative', 'stageFlowering', 'stageFruiting', 'stageHarvesting']
 
 // MUST match the backend CropVariety enum (app/schemas/farmer.py) + the DB
 // CheckConstraint exactly — any other value is rejected with a 422. Use a
